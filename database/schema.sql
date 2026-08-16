@@ -85,5 +85,91 @@ USING DELTA
 LOCATION '${STORAGE_PATH}/bronze/bronze_ingestion_log';
 
 -- -----------------------------------------------------------------------------
--- Silver / Gold — implemented in later phases
+-- Silver: customers (validated + DQ flags)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ${CATALOG_NAME}.${SCHEMA_NAME}.silver_customers (
+    customer_id           INT             NOT NULL,
+    customer_name         STRING          NOT NULL,
+    email                 STRING,
+    country               STRING          NOT NULL,
+    signup_date           DATE            NOT NULL,
+    customer_segment      STRING          NOT NULL,
+    lifetime_value        DECIMAL(12, 2)  NOT NULL,
+    _ingestion_timestamp  TIMESTAMP       NOT NULL,
+    _source_file          STRING          NOT NULL,
+    _batch_id             STRING          NOT NULL,
+    dq_status             STRING          NOT NULL,
+    dq_failure_reasons    ARRAY<STRING>,
+    _silver_processed_at  TIMESTAMP       NOT NULL
+)
+USING DELTA
+COMMENT 'Silver validated customers — all rows retained with DQ flags'
+LOCATION '${STORAGE_PATH}/silver/silver_customers';
+
+-- -----------------------------------------------------------------------------
+-- Silver: products
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ${CATALOG_NAME}.${SCHEMA_NAME}.silver_products (
+    product_id            INT             NOT NULL,
+    product_name          STRING          NOT NULL,
+    category              STRING          NOT NULL,
+    price                 DECIMAL(10, 2)  NOT NULL,
+    cost                  DECIMAL(10, 2)  NOT NULL,
+    stock_quantity        INT             NOT NULL,
+    reorder_level         INT             NOT NULL,
+    _ingestion_timestamp  TIMESTAMP       NOT NULL,
+    _source_file          STRING          NOT NULL,
+    _batch_id             STRING          NOT NULL,
+    dq_status             STRING          NOT NULL,
+    dq_failure_reasons    ARRAY<STRING>,
+    _silver_processed_at  TIMESTAMP       NOT NULL
+)
+USING DELTA
+LOCATION '${STORAGE_PATH}/silver/silver_products';
+
+-- -----------------------------------------------------------------------------
+-- Silver: orders (normalized INTEGER FKs)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ${CATALOG_NAME}.${SCHEMA_NAME}.silver_orders (
+    order_id              INT             NOT NULL,
+    customer_id           INT,
+    order_date            DATE            NOT NULL,
+    product_id            INT,
+    quantity              INT             NOT NULL,
+    unit_price            DECIMAL(10, 2)  NOT NULL,
+    total_amount          DECIMAL(12, 2)  NOT NULL,
+    order_status          STRING          NOT NULL,
+    payment_date          DATE,
+    _ingestion_timestamp  TIMESTAMP       NOT NULL,
+    _source_file          STRING          NOT NULL,
+    _batch_id             STRING          NOT NULL,
+    dq_status             STRING          NOT NULL,
+    dq_failure_reasons    ARRAY<STRING>,
+    _silver_processed_at  TIMESTAMP       NOT NULL
+)
+USING DELTA
+LOCATION '${STORAGE_PATH}/silver/silver_orders';
+
+-- -----------------------------------------------------------------------------
+-- Silver: DQ metrics (append per run)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ${CATALOG_NAME}.${SCHEMA_NAME}.silver_dq_metrics (
+    entity_name           STRING          NOT NULL,
+    metric_type           STRING          NOT NULL,
+    reason_code           STRING,
+    rule_id               STRING,
+    total_records         INT             NOT NULL,
+    failed_count          INT             NOT NULL,
+    passed_count          INT             NOT NULL,
+    failed_percentage     DOUBLE          NOT NULL,
+    passed_percentage     DOUBLE          NOT NULL,
+    batch_id              STRING          NOT NULL,
+    metric_timestamp      TIMESTAMP       NOT NULL
+)
+USING DELTA
+COMMENT 'Silver DQ metrics — RULE per reason code + OVERALL row-level per entity'
+LOCATION '${STORAGE_PATH}/silver/silver_dq_metrics';
+
+-- -----------------------------------------------------------------------------
+-- Gold — planned in later phase
 -- -----------------------------------------------------------------------------

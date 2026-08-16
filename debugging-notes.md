@@ -111,7 +111,31 @@ Also capture related AI prompts in `ai-prompts/debugging.md`.
 
 ---
 
-### Issue N — (Template)
+### Issue 007 — Spark `createDataFrame` cannot infer NULL column types (Spark 3.13)
+
+| Field | Detail |
+|-------|--------|
+| **Date** | 2026-08-16 |
+| **Phase** | Phase 3 — Silver tests |
+| **Symptom** | `PySparkValueError: CANNOT_DETERMINE_TYPE` when building single-row test DataFrames with NULL values |
+| **Context** | `pytest tests/test_silver_*.py` on Spark 3.5 / Python 3.13 |
+| **Root cause** | Passing column name list without explicit `StructType` when a row contains NULL — Spark cannot infer type |
+| **Resolution** | Reuse Bronze `CUSTOMERS_CSV_SCHEMA` / `ORDERS_CSV_SCHEMA` in Silver tests; shared `tests/silver_test_fixtures.py` |
+| **Prevention** | Always pass explicit schema for fixture DataFrames with nullable columns |
+
+### Issue 008 — Duplicate session Spark fixtures across test modules
+
+| Field | Detail |
+|-------|--------|
+| **Date** | 2026-08-16 |
+| **Phase** | Phase 3 — Silver tests |
+| **Symptom** | Spark tests errored when multiple modules each defined `scope="session"` `spark` fixtures |
+| **Context** | `pytest tests/` combined run |
+| **Root cause** | Separate session-scoped Spark fixtures in bronze and silver test files |
+| **Resolution** | Single shared `spark` fixture in `tests/conftest.py` |
+| **Prevention** | Do not redefine `spark` in individual test modules |
+
+---
 
 | Field | Detail |
 |-------|--------|
@@ -159,6 +183,5 @@ pytest tests/ -v
 
 | Metric | Value |
 |--------|-------|
-| Issues logged | 6 |
-| Open issues | 0 |
-| Resolved issues | 6 |
+| Issues logged | 8 |
+| Resolved issues | 8 |

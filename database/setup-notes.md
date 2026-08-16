@@ -92,10 +92,45 @@ SELECT * FROM <catalog>.<schema>.bronze_ingestion_log ORDER BY ingestion_timesta
 ## Pipeline execution order
 
 1. Generate CSVs (Phase 1) ✅
-2. Bronze ingestion (Phase 2) ✅ code ready
-3. Silver validation (planned)
+2. Bronze ingestion (Phase 2) ✅
+3. Silver validation + metrics (Phase 3) ✅ code ready
 4. Gold aggregation (planned)
 5. Dashboard (planned)
+
+### Silver environment variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `SILVER_CATALOG` | `BRONZE_CATALOG` | Unity Catalog name |
+| `SILVER_SCHEMA` | `BRONZE_SCHEMA` / `ecommerce_medallion` | Schema name |
+| `SILVER_STORAGE_PATH` | `BRONZE_STORAGE_PATH` | Delta root path |
+| `SILVER_ENTITY_WRITE_MODE` | `overwrite` | Silver entity tables |
+| `SILVER_METRICS_WRITE_MODE` | `append` | `silver_dq_metrics` |
+| `SILVER_READ_BRONZE_DELTA` | `false` | Read Bronze from Delta vs CSV prepare |
+
+### Run Silver locally (transform + metrics, no Delta)
+
+```bash
+python -c "
+from silver.create_silver_tables import run_silver_pipeline
+from bronze.bronze_common import BronzeConfig, get_spark_session
+from silver.silver_config import SilverConfig
+spark = get_spark_session('silver-local')
+run_silver_pipeline(spark, BronzeConfig.from_env(), SilverConfig.from_env(), write_delta=False)
+"
+```
+
+### Run Silver on Databricks (Delta writes)
+
+```bash
+export SILVER_CATALOG=main
+export SILVER_SCHEMA=ecommerce_medallion
+export SILVER_STORAGE_PATH=dbfs:/tmp/medallion_assessment
+export BRONZE_INPUT_DIR=/path/to/data
+python src/silver/create_silver_tables.py
+```
+
+**Databricks Silver Delta integration not yet validated in this repo** — local pipeline and metrics are tested; Delta write path mirrors Bronze.
 
 ---
 
@@ -105,5 +140,6 @@ SELECT * FROM <catalog>.<schema>.bronze_ingestion_log ORDER BY ingestion_timesta
 |------|--------|
 | Catalog/schema DDL documented | Done |
 | Bronze PySpark scripts | Done |
-| Local Bronze transform tests | Done |
-| Databricks Delta integration run | Not executed in repo |
+| Silver validation + metrics | Done |
+| Local Silver transform/metrics tests | Done |
+| Databricks Delta integration run (Bronze/Silver) | Not executed in repo |

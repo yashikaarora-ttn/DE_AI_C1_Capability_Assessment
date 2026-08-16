@@ -51,20 +51,6 @@ from pyspark.sql import SparkSession  # noqa: E402
 from pyspark.sql.functions import col  # noqa: E402
 
 
-@pytest.fixture(scope="session")
-def spark() -> SparkSession:
-    session = (
-        SparkSession.builder.master("local[1]")
-        .appName("bronze-ingestion-tests")
-        .config("spark.sql.session.timeZone", "UTC")
-        .config("spark.ui.enabled", "false")
-        .config("spark.hadoop.fs.defaultFS", "file:///")
-        .getOrCreate()
-    )
-    session.sparkContext.setLogLevel("ERROR")
-    return session
-
-
 @pytest.fixture
 def sample_data_dir(tmp_path) -> Path:
     generate_all(seed=42, output_dir=str(tmp_path))

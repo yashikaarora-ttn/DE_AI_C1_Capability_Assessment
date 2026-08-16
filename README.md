@@ -4,7 +4,7 @@ Data Engineering AI Capability Assessment repository.
 
 A production-oriented **Databricks Medallion Architecture** pipeline for e-commerce analytics. The pipeline ingests customer, product, and order data through **Bronze → Silver → Gold** layers and exposes business metrics via a **SQL dashboard**.
 
-**Current status: Phase 2 (Bronze ingestion) complete locally.** CSV generator, Bronze PySpark ingestion, and tests are implemented. Silver/Gold/Dashboard planned for subsequent phases.
+**Current status: Phase 3 Silver complete locally.** Full validation, DQ metrics, and table-creation orchestration; **86 tests passing**. Gold and Dashboard remain.
 
 ---
 
@@ -134,6 +134,74 @@ pytest tests/test_data_generation.py tests/test_bronze_ingestion.py -v
 
 ---
 
+## Silver Validation (Phase 3)
+
+Silver establishes trusted types and explicit row-level DQ results without deleting failed rows.
+
+### Validation order
+
+1. Completeness (`01_quality_completeness.py`)
+2. Type / business rules (`03_quality_type_validation.py`)
+3. Uniqueness (`02_quality_uniqueness.py`)
+4. Referential integrity (`04_quality_referential_integrity.py`)
+
+Orchestration: `silver_foundation.apply_silver_pipeline()` or `apply_silver_all()`.
+
+### Implemented modules
+
+| Module | Purpose |
+|--------|---------|
+| `src/silver/silver_common.py` | Reason codes, FK normalization, reason accumulation |
+| `src/silver/01_quality_completeness.py` | Required-field completeness |
+| `src/silver/02_quality_uniqueness.py` | PK uniqueness (all rows in duplicate groups flagged) |
+| `src/silver/03_quality_type_validation.py` | FK STRING→INTEGER, type and business rules |
+| `src/silver/04_quality_referential_integrity.py` | Order FK references vs customers/products |
+| `src/silver/05_quality_business_logic.py` | Thin delegate to type/business rules (assignment alignment) |
+| `src/silver/dq_metrics.py` | DQ metrics builder (RULE + OVERALL) |
+| `src/silver/silver_config.py` | Silver config and Delta write helpers |
+| `src/silver/create_silver_tables.py` | Full pipeline + optional Delta writes |
+
+**Not yet:** Gold, Dashboard.
+
+### Silver write strategy
+
+| Table | Mode | Rationale |
+|-------|------|-----------|
+| `silver_customers`, `silver_orders`, `silver_products` | **overwrite** | Latest validated snapshot (matches Bronze entity strategy) |
+| `silver_dq_metrics` | **append** | Metrics history per batch/run |
+
+### Run Silver
+
+```bash
+# Full test suite
+pytest tests/ -v
+
+# Create Silver tables (Databricks with Delta)
+python src/silver/create_silver_tables.py
+```
+
+### Silver row flags
+
+| Column | Description |
+|--------|-------------|
+| `dq_status` | `PASS` or `FAIL` |
+| `dq_failure_reasons` | `ARRAY<STRING>` of stable reason codes |
+| `_silver_processed_at` | Validation timestamp |
+
+Failed rows remain in Silver. Multiple reason codes accumulate per row.
+
+### Run tests
+
+```bash
+pytest tests/test_data_generation.py tests/test_bronze_ingestion.py \
+  tests/test_silver_completeness.py tests/test_silver_type_validation.py \
+  tests/test_silver_uniqueness.py tests/test_silver_referential_integrity.py \
+  tests/test_silver_full_pipeline.py tests/test_silver_dq_metrics.py \
+  tests/test_silver_table_creation.py -v
+```
+
+---
+
 ## Architecture Overview
 
 ```text
@@ -206,12 +274,12 @@ Environment-specific values (catalog name, schema name, storage paths) will be d
 1. **Setup** — Configure catalog/schema; review `database/schema.sql` and setup notes
 2. **Data generation** — `python src/data_generation/generate_sample_data.py` ✅
 3. **Bronze** — `python src/bronze/ingest_all.py` ✅ (local transform tests; Delta on Databricks)
-4. **Silver** — Apply validation rules; flag bad records; publish DQ metrics
+4. **Silver** — Full validation pipeline ✅; DQ metrics — pending
 5. **Gold** — Build sales-by-product, revenue-by-customer, and customer segmentation tables
 6. **Dashboard** — Run SQL queries and build visualizations
 7. **Validate** — Run tests; review DQ reports; verify dashboard outputs
 
-Steps 4–7 are **not yet implemented**.
+Steps 5–7 and remaining Silver work are **not yet implemented**.
 
 ---
 

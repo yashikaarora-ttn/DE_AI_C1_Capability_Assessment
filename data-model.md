@@ -40,7 +40,7 @@ Entity definitions for CSV source files, Bronze Delta tables, Silver validated t
 
 **Primary key (logical):** `customer_id` — not unique in source due to intentional duplicates.
 
-**Silver rules (planned):** completeness, uniqueness, email not null.
+**Silver rules (implemented):** completeness, type/business foundation, uniqueness, and referential integrity. See `data-quality-strategy.md` for reason codes.
 
 ---
 
@@ -92,21 +92,19 @@ Bronze performs **no business cleaning** — all source rows and DQ issues are p
 
 ### Bronze vs Silver type representation
 
-| Column | Bronze (raw) | Silver (planned) |
-|--------|--------------|------------------|
+| Column | Bronze (raw) | Silver (implemented foundation) |
+|--------|--------------|----------------------------------|
 | `orders.customer_id` | STRING (nullable) | INTEGER after parse/normalize |
 | `orders.product_id` | STRING (nullable) | INTEGER after parse/normalize |
 | Other source columns | Typed per CSV contract | Same types after validation |
 
-Bronze stores nullable order FKs as STRING because pandas CSV may emit values like
-`8952.0`. Silver will normalize (`8952.0` → `8952`), validate, and flag unparseable values.
+**Silver FK normalization (implemented):**
 
-**Silver FK normalization (planned):**
-
-- NULL / empty → completeness failure
+- NULL / blank STRING FK → completeness failure (`NULL_CUSTOMER_ID`, `NULL_PRODUCT_ID`)
 - Parse numeric strings (`8952`, `8952.0`) → integer
-- Reject non-numeric garbage (e.g. `ABC`, empty after trim)
-- Referential integrity checks on parsed integers
+- Reject non-numeric garbage (e.g. `ABC`, `12.5`) with `INVALID_*_ID_TYPE` — not silent NULL
+- Referential integrity checks on parsed integers — **implemented** (`04_quality_referential_integrity.py`)
+- Raw Bronze STRING FK values retained in `bronze_orders` (no duplicate raw columns in Silver)
 
 ---
 
@@ -123,13 +121,40 @@ Bronze stores nullable order FKs as STRING because pandas CSV may emit values li
 
 ---
 
-## Silver Layer — Additional Columns (planned)
+## Silver Layer — Additional Columns (implemented foundation)
 
 | Column | Data Type | Description |
 |--------|-----------|-------------|
-| `is_valid` | BOOLEAN | Passes all Silver validation rules |
-| `dq_failure_reasons` | STRING | Delimited failure reason codes |
+| `dq_status` | STRING | `PASS` or `FAIL` |
+| `dq_failure_reasons` | ARRAY&lt;STRING&gt; | Stable reason codes; empty when PASS |
 | `_silver_processed_at` | TIMESTAMP | Silver validation timestamp |
+
+Bronze metadata columns (`_ingestion_timestamp`, `_source_file`, `_batch_id`) flow through Silver when processing Bronze DataFrames.
+
+### Silver tables
+
+| Table | Write mode | Description |
+|-------|------------|-------------|
+| `silver_customers` | overwrite | Validated customers + DQ flags |
+| `silver_products` | overwrite | Validated products + DQ flags |
+| `silver_orders` | overwrite | Validated orders (INTEGER FKs) + DQ flags |
+| `silver_dq_metrics` | append | Per-run RULE and OVERALL metrics |
+
+### `silver_dq_metrics` schema
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `entity_name` | STRING | customers / orders / products |
+| `metric_type` | STRING | `RULE` or `OVERALL` |
+| `reason_code` | STRING | Reason code (null for OVERALL) |
+| `rule_id` | STRING | Optional rule id (e.g. COMP-CUST-02) |
+| `total_records` | INT | Entity row count |
+| `failed_count` | INT | Failed rows for rule or OVERALL |
+| `passed_count` | INT | Passed rows for rule or OVERALL |
+| `failed_percentage` | DOUBLE | `failed_count / total_records × 100` |
+| `passed_percentage` | DOUBLE | `passed_count / total_records × 100` |
+| `batch_id` | STRING | Pipeline batch id |
+| `metric_timestamp` | TIMESTAMP | When metrics were computed |
 
 ---
 

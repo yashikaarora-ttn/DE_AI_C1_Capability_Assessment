@@ -51,8 +51,10 @@ Bronze answers: *"What did we receive, when, and how much?"*
 | Uniqueness | Primary keys must be unique within entity |
 | Referential integrity | Order FKs must exist in customer and product masters |
 | Business rules | e.g., `product.price > 0`, valid date formats |
-| Flagging | Each row gets `is_valid` and `dq_failure_reasons` |
-| Metrics | Aggregate pass/fail counts and percentages per rule per run |
+| Flagging | Each row gets `dq_status` (`PASS`/`FAIL`) and `dq_failure_reasons` array |
+| Metrics | `silver_dq_metrics` — RULE per reason + OVERALL per entity (**implemented**) |
+
+**Phase 3 (complete):** Full Silver validation, `dq_metrics.py`, `create_silver_tables.py`, `05_quality_business_logic.py` (delegates to type module). Gold and Dashboard remain.
 
 Silver answers: *"Which rows are trustworthy, which failed, and why?"*
 
@@ -60,7 +62,7 @@ Silver answers: *"Which rows are trustworthy, which failed, and why?"*
 
 | Responsibility | Detail |
 |----------------|--------|
-| Input | **Only** Silver rows where `is_valid = true` |
+| Input | **Only** Silver rows where `dq_status = 'PASS'` |
 | Sales by Product | Quantity and revenue grouped by product |
 | Revenue by Customer | Total revenue and order counts per customer |
 | Customer Segmentation | Assign segment labels based on revenue tiers |
@@ -83,7 +85,7 @@ Validation runs in Silver after Bronze ingestion:
 
 1. **Rule catalog** — Each rule has an ID, description, and failure reason code.
 2. **Row-level evaluation** — Rules applied per row; multiple failures captured in `dq_failure_reasons`.
-3. **No silent deletion** — Invalid rows remain in Silver tables with `is_valid = false`.
+3. **No silent deletion** — Invalid rows remain in Silver tables with `dq_status = 'FAIL'`.
 4. **Metrics table** — `silver_dq_metrics` (or equivalent) stores per-rule and per-table statistics per pipeline run.
 5. **Reporting** — Notebook or SQL view summarizes latest DQ run for human review.
 
@@ -97,12 +99,12 @@ Each Silver entity table includes:
 
 | Column | Type | Purpose |
 |--------|------|---------|
-| `is_valid` | BOOLEAN | `true` if all rules pass for this row |
-| `dq_failure_reasons` | STRING or ARRAY | Codes such as `NULL_EMAIL`, `DUPLICATE_CUSTOMER_ID`, `INVALID_CUSTOMER_ID` |
+| `dq_status` | STRING | `PASS` or `FAIL` |
+| `dq_failure_reasons` | ARRAY&lt;STRING&gt; | Codes such as `NULL_EMAIL`, `DUPLICATE_CUSTOMER_ID`, `INVALID_CUSTOMER_ID` |
 
 **Flagging logic:**
 
-- A row with any failed rule → `is_valid = false`
+- A row with any failed rule → `dq_status = FAIL`
 - Reason codes are additive (all failures recorded)
 - Duplicate key rows: all rows sharing the duplicate key are flagged
 - Invalid FK rows: flagged with `INVALID_CUSTOMER_ID` or `INVALID_PRODUCT_ID` (distinct from NULL codes)
@@ -114,9 +116,9 @@ Invalid rows are **excluded from Gold joins and aggregations** but remain querya
 ## How Gold Consumes Validated Data
 
 ```text
-silver_customers  (is_valid = true)  ──┐
-silver_products   (is_valid = true)  ──┼──► Gold aggregations
-silver_orders     (is_valid = true)  ──┘
+silver_customers  (dq_status = 'PASS')  ──┐
+silver_products   (dq_status = 'PASS')  ──┼──► Gold aggregations
+silver_orders     (dq_status = 'PASS')  ──┘
 ```
 
 **Join strategy (planned):**
