@@ -4,7 +4,7 @@ Data Engineering AI Capability Assessment repository.
 
 A production-oriented **Databricks Medallion Architecture** pipeline for e-commerce analytics. The pipeline ingests customer, product, and order data through **Bronze → Silver → Gold** layers and exposes business metrics via a **SQL dashboard**.
 
-**Current status: Phase 1 (sample data generation) complete.** Deterministic CSV generator and tests are implemented. Bronze/Silver/Gold pipeline code and dashboard are planned for subsequent phases.
+**Current status: Phase 2 (Bronze ingestion) complete locally.** CSV generator, Bronze PySpark ingestion, and tests are implemented. Silver/Gold/Dashboard planned for subsequent phases.
 
 ---
 
@@ -66,6 +66,70 @@ Default seed is `42`. The same seed produces identical output (`random` + `Faker
 
 ```bash
 pytest tests/test_data_generation.py -v
+```
+
+---
+
+## Bronze Ingestion (Phase 2)
+
+Ingest raw CSVs to Delta Bronze tables with explicit schemas and ingestion metadata.
+
+### Environment variables (optional)
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `BRONZE_CATALOG` | unset | Unity Catalog name (e.g. `main`) |
+| `BRONZE_SCHEMA` | `ecommerce_medallion` | Schema/database name |
+| `BRONZE_STORAGE_PATH` | unset | Root storage path for Delta files |
+| `BRONZE_INPUT_DIR` | `data` | Directory containing CSV files (repo-relative) |
+| `BRONZE_ENTITY_WRITE_MODE` | `overwrite` | Bronze entity table write mode |
+| `BRONZE_LOG_WRITE_MODE` | `append` | Ingestion log write mode |
+
+### Run locally (requires Java for PySpark)
+
+```bash
+source .venv/bin/activate
+pip install -r requirements.txt
+python src/data_generation/generate_sample_data.py
+python src/bronze/ingest_all.py
+```
+
+Individual entity scripts:
+
+```bash
+python src/bronze/01_ingest_customers.py
+python src/bronze/02_ingest_orders.py
+python src/bronze/03_ingest_products.py
+```
+
+### Databricks execution
+
+1. Upload/sync repository to Databricks workspace or Repos.
+2. Generate CSVs on cluster or upload `data/*.csv` to DBFS/cloud path.
+3. Set environment variables on the cluster/job (catalog, schema, storage path, input dir).
+4. Run as a Python job or notebook:
+
+```python
+%run ./src/bronze/ingest_all.py
+```
+
+Or from a job task: `python src/bronze/ingest_all.py` with `PYTHONPATH=src`.
+
+**Delta write validation** is an integration step on Databricks (local tests cover read/transform/metadata without requiring Delta Lake).
+
+### Bronze tables
+
+| Table | Source CSV | Write mode |
+|-------|------------|------------|
+| `bronze_customers` | `customers.csv` | overwrite |
+| `bronze_orders` | `orders.csv` | overwrite |
+| `bronze_products` | `products.csv` | overwrite |
+| `bronze_ingestion_log` | — | append |
+
+### Run tests
+
+```bash
+pytest tests/test_data_generation.py tests/test_bronze_ingestion.py -v
 ```
 
 ---
@@ -141,13 +205,13 @@ Environment-specific values (catalog name, schema name, storage paths) will be d
 
 1. **Setup** — Configure catalog/schema; review `database/schema.sql` and setup notes
 2. **Data generation** — `python src/data_generation/generate_sample_data.py` ✅
-3. **Bronze** — Ingest raw CSVs to Delta; log ingestion metadata
+3. **Bronze** — `python src/bronze/ingest_all.py` ✅ (local transform tests; Delta on Databricks)
 4. **Silver** — Apply validation rules; flag bad records; publish DQ metrics
 5. **Gold** — Build sales-by-product, revenue-by-customer, and customer segmentation tables
 6. **Dashboard** — Run SQL queries and build visualizations
 7. **Validate** — Run tests; review DQ reports; verify dashboard outputs
 
-Steps 3–7 are **not yet implemented**.
+Steps 4–7 are **not yet implemented**.
 
 ---
 

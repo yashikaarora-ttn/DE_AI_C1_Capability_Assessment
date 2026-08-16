@@ -1,3 +1,4 @@
 pandas>=2.0,<3
 faker>=18.0,<36
 pytest>=7.0,<9
+pyspark>=3.4.0,<4

@@ -85,6 +85,32 @@ Also capture related AI prompts in `ai-prompts/debugging.md`.
 
 ---
 
+### Issue 005 — Spark CSV INT nulls for pandas float-formatted FK values
+
+| Field | Detail |
+|-------|--------|
+| **Date** | 2026-08-16 |
+| **Phase** | Phase 2 — Bronze |
+| **Symptom** | Bronze tests showed all `customer_id` null after read (100k nulls) |
+| **Context** | `pytest tests/test_bronze_ingestion.py` |
+| **Root cause** | Pandas writes nullable integer columns as floats in CSV (`8952.0`); Spark `IntegerType` cannot parse and sets null |
+| **Resolution** | Bronze reads nullable order FK columns as `STRING`; documented for Silver casting |
+| **Prevention** | Bronze schema docs; intentional null count tests |
+
+### Issue 006 — Local Spark HDFS connection errors on CSV read
+
+| Field | Detail |
+|-------|--------|
+| **Date** | 2026-08-16 |
+| **Phase** | Phase 2 — Bronze |
+| **Symptom** | `Connection refused` to corporate HDFS host when reading local CSV |
+| **Context** | Local PySpark tests on macOS |
+| **Root cause** | Default Hadoop FS not `file://`; plain paths resolved to HDFS |
+| **Resolution** | Use `file://` URIs via `Path.as_uri()` and `spark.hadoop.fs.defaultFS=file:///` |
+| **Prevention** | Spark test fixture config |
+
+---
+
 ### Issue N — (Template)
 
 | Field | Detail |
@@ -133,6 +159,6 @@ pytest tests/ -v
 
 | Metric | Value |
 |--------|-------|
-| Issues logged | 4 |
+| Issues logged | 6 |
 | Open issues | 0 |
-| Resolved issues | 4 |
+| Resolved issues | 6 |

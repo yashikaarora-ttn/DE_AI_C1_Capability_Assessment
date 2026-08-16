@@ -29,12 +29,17 @@ Data flows left to right. Each layer has a single, clear responsibility. Silver 
 
 | Responsibility | Detail |
 |----------------|--------|
-| Read CSVs | Load `customers.csv`, `orders.csv`, `products.csv` |
+| Read CSVs | Load `customers.csv`, `orders.csv`, `products.csv` from configurable input dir |
 | Preserve fidelity | No deduplication, no FK enforcement, no business filtering |
-| Schema handling | Apply explicit schemas (or infer once and lock in config) |
-| Type handling | Cast or store types consistently; document any deferred casting |
-| Metadata | Add `_ingestion_timestamp`, `_source_file`, `_batch_id` (if append mode) |
-| Logging | Record per-file row counts in an ingestion log table |
+| Schema handling | Explicit PySpark `StructType` per entity (`bronze_common.py`) |
+| Type handling | DATE/DECIMAL/INT with documented Spark CSV parse behavior |
+| Metadata | `_ingestion_timestamp`, `_source_file`, `_batch_id` on every Bronze row |
+| Logging | `bronze_ingestion_log` with row counts per entity per batch |
+| Write mode | Entity tables **overwrite**; ingestion log **append** |
+
+**Write strategy trade-off:** Overwrite keeps one current Bronze snapshot per entity for simple dev/reruns. Ingestion log append retains run history. Production deployments may use append-only/immutable Bronze with batch partitioning instead.
+
+**Coordinated runs:** Use `ingest_all.py` so all entities share one `batch_id` and `ingestion_timestamp`. Individual entity scripts generate their own batch id per invocation.
 
 Bronze answers: *"What did we receive, when, and how much?"*
 

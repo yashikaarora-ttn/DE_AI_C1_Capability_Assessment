@@ -1,6 +1,8 @@
 # Data Model
 
-Entity definitions for the e-commerce source datasets and their relationships. Schemas apply to CSV source files, Bronze Delta tables, and Silver validated tables (Silver adds DQ columns).
+Entity definitions for CSV source files, Bronze Delta tables, Silver validated tables, and Gold aggregations.
+
+**Source CSV schemas** match `src/data_generation/generate_sample_data.py` (Phase 1). Bronze tables add ingestion metadata columns documented below.
 
 ---
 
@@ -13,7 +15,6 @@ Entity definitions for the e-commerce source datasets and their relationships. S
 └────────┬─────────┘         └────────┬─────────┘
          │                            │
          │ 1                          │ 1
-         │                            │
          ▼ *                          ▼ *
 ┌────────────────────────────────────────────────┐
 │                    orders                      │
@@ -25,89 +26,110 @@ Entity definitions for the e-commerce source datasets and their relationships. S
 
 ---
 
-## customers
-
-Master table for e-commerce customers.
+## customers (CSV + Bronze)
 
 | Column | Data Type | Nullable | Key | Description |
 |--------|-----------|----------|-----|-------------|
-| `customer_id` | INTEGER | NO | **PK** | Unique customer identifier |
-| `first_name` | STRING | NO | | Customer first name |
-| `last_name` | STRING | NO | | Customer last name |
-| `email` | STRING | YES | | Contact email (completeness rule: required in Silver) |
+| `customer_id` | INTEGER | NO | **PK** | Customer identifier (duplicates exist in source) |
+| `customer_name` | STRING | NO | | Full customer name |
+| `email` | STRING | YES | | Contact email (50 NULLs in sample data) |
+| `country` | STRING | NO | | Country name |
 | `signup_date` | DATE | NO | | Account registration date |
-| `country` | STRING | NO | | Country code or name |
+| `customer_segment` | STRING | NO | | Premium / Standard / Basic |
+| `lifetime_value` | DECIMAL(12,2) | NO | | Lifetime value in USD |
 
-**Primary key:** `customer_id`
+**Primary key (logical):** `customer_id` — not unique in source due to intentional duplicates.
 
-**Business rules (Silver):**
-
-- `customer_id` must not be NULL
-- `email` must not be NULL (completeness)
-- `customer_id` must be unique
+**Silver rules (planned):** completeness, uniqueness, email not null.
 
 ---
 
-## products
-
-Master table for sellable products.
+## products (CSV + Bronze)
 
 | Column | Data Type | Nullable | Key | Description |
 |--------|-----------|----------|-----|-------------|
 | `product_id` | INTEGER | NO | **PK** | Unique product identifier |
 | `product_name` | STRING | NO | | Product display name |
-| `category` | STRING | NO | | Product category (e.g., Electronics, Clothing) |
-| `price` | DECIMAL(10,2) | NO | | Unit price in USD |
-| `created_date` | DATE | NO | | Product catalog entry date |
+| `category` | STRING | NO | | Product category |
+| `price` | DECIMAL(10,2) | NO | | Unit price USD |
+| `cost` | DECIMAL(10,2) | NO | | Unit cost USD |
+| `stock_quantity` | INTEGER | NO | | Units in stock |
+| `reorder_level` | INTEGER | NO | | Reorder threshold |
 
 **Primary key:** `product_id`
 
-**Business rules (Silver):**
-
-- `product_id` must not be NULL and must be unique
-- `price` must be greater than 0
-
 ---
 
-## orders
-
-Transactional order line items (one row per order line).
+## orders (CSV + Bronze)
 
 | Column | Data Type | Nullable | Key | Description |
 |--------|-----------|----------|-----|-------------|
-| `order_id` | INTEGER | NO | **PK** | Unique order identifier |
-| `customer_id` | INTEGER | YES | **FK** → `customers.customer_id` | Ordering customer |
-| `product_id` | INTEGER | YES | **FK** → `products.product_id` | Ordered product |
-| `quantity` | INTEGER | NO | | Units ordered (≥ 1) |
-| `order_date` | DATE | NO | | Date order was placed |
-| `order_status` | STRING | NO | | Status (e.g., completed, pending, cancelled) |
+| `order_id` | INTEGER | NO | **PK** | Order identifier (duplicates in source) |
+| `customer_id` | STRING | YES | **FK** | Raw CSV FK value (may be `8952` or `8952.0`; NULL in source) |
+| `order_date` | DATE | NO | | Order placement date |
+| `product_id` | STRING | YES | **FK** | Raw CSV FK value; NULL in source |
+| `quantity` | INTEGER | NO | | Units ordered (≥ 1 in sample data) |
+| `unit_price` | DECIMAL(10,2) | NO | | Price per unit |
+| `total_amount` | DECIMAL(12,2) | NO | | `quantity × unit_price` in sample data |
+| `order_status` | STRING | NO | | Pending / Completed / Cancelled |
+| `payment_date` | DATE | YES | | Payment date when applicable |
 
-**Primary key:** `order_id`
-
-**Foreign keys:**
-
-- `customer_id` references `customers.customer_id`
-- `product_id` references `products.product_id`
-
-**Business rules (Silver):**
-
-- `order_id`, `customer_id`, `product_id` must not be NULL (completeness)
-- `order_id` must be unique
-- `customer_id` must exist in `customers`
-- `product_id` must exist in `products`
-- `quantity` must be ≥ 1
+**Foreign keys:** `customer_id`, `product_id` — nullable and may be invalid in source.
 
 ---
 
-## Silver Layer — Additional Columns
+## Bronze Layer — Metadata Columns
 
-Applied to all Silver entity tables during validation:
+Added to `bronze_customers`, `bronze_orders`, `bronze_products` during ingestion:
 
 | Column | Data Type | Description |
 |--------|-----------|-------------|
-| `is_valid` | BOOLEAN | `true` if row passes all validation rules |
-| `dq_failure_reasons` | STRING | Delimited list of failure reason codes |
-| `_silver_processed_at` | TIMESTAMP | When Silver validation ran |
+| `_ingestion_timestamp` | TIMESTAMP | UTC timestamp when Bronze ingestion ran |
+| `_source_file` | STRING | Source CSV filename (e.g. `customers.csv`) |
+| `_batch_id` | STRING | Pipeline run identifier shared across entities |
+
+Bronze performs **no business cleaning** — all source rows and DQ issues are preserved.
+
+### Bronze vs Silver type representation
+
+| Column | Bronze (raw) | Silver (planned) |
+|--------|--------------|------------------|
+| `orders.customer_id` | STRING (nullable) | INTEGER after parse/normalize |
+| `orders.product_id` | STRING (nullable) | INTEGER after parse/normalize |
+| Other source columns | Typed per CSV contract | Same types after validation |
+
+Bronze stores nullable order FKs as STRING because pandas CSV may emit values like
+`8952.0`. Silver will normalize (`8952.0` → `8952`), validate, and flag unparseable values.
+
+**Silver FK normalization (planned):**
+
+- NULL / empty → completeness failure
+- Parse numeric strings (`8952`, `8952.0`) → integer
+- Reject non-numeric garbage (e.g. `ABC`, empty after trim)
+- Referential integrity checks on parsed integers
+
+---
+
+## bronze_ingestion_log
+
+| Column | Data Type | Description |
+|--------|-----------|-------------|
+| `entity_name` | STRING | customers / orders / products |
+| `source_file` | STRING | CSV filename |
+| `row_count` | INTEGER | Rows ingested |
+| `ingestion_timestamp` | TIMESTAMP | UTC ingestion time |
+| `batch_id` | STRING | Pipeline run id |
+| `status` | STRING | SUCCESS (failure stops pipeline before log write) |
+
+---
+
+## Silver Layer — Additional Columns (planned)
+
+| Column | Data Type | Description |
+|--------|-----------|-------------|
+| `is_valid` | BOOLEAN | Passes all Silver validation rules |
+| `dq_failure_reasons` | STRING | Delimited failure reason codes |
+| `_silver_processed_at` | TIMESTAMP | Silver validation timestamp |
 
 ---
 
@@ -119,28 +141,24 @@ Applied to all Silver entity tables during validation:
 | `gold_revenue_by_customer` | One row per customer | `customer_id` |
 | `gold_customer_segmentation` | One row per customer | `customer_id`, `segment` |
 
-Detailed Gold column lists will be added during the Gold implementation phase.
-
 ---
 
-## Revenue Calculation
+## Revenue Calculation (Gold)
 
 ```text
 line_revenue = orders.quantity × products.price
 ```
 
-- Price sourced from **valid** `silver_products` at aggregation time
-- Only **valid** `silver_orders` included in Gold calculations
-- Orders with invalid or missing product references are excluded via Silver flagging
+Gold will use validated Silver data only.
 
 ---
 
-## Identifier Ranges (Planned for Data Generation)
+## Identifier Ranges (Sample Data)
 
-| Entity | Valid ID range (planned) | Notes |
-|--------|--------------------------|-------|
-| customers | 1 – 10,000 | 10 duplicate IDs will reuse existing IDs |
-| products | 1 – 500 | Invalid refs use IDs outside this range |
-| orders | 1 – 100,000 | 20 duplicate IDs will reuse existing IDs |
+| Entity | ID range | Notes |
+|--------|----------|-------|
+| customers | 1 – 9,995 (+ duplicates for ids 1–5) | 10,000 rows |
+| products | 1 – 500 | |
+| orders | 1 – 99,990 | 100,000 rows; duplicate order ids 99601–99610 |
 
-Exact generation logic documented in `src/data_generation/DATA_GENERATION_NOTES.md` and `database/seed-data-notes.md`.
+See `database/seed-data-notes.md` for intentional DQ issue counts.

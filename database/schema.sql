@@ -1,95 +1,89 @@
 -- =============================================================================
--- Databricks Medallion Pipeline — Initial Schema Placeholder
+-- Databricks Medallion Pipeline — Schema Reference
 -- =============================================================================
--- Purpose: Define source entity structures and Medallion table naming conventions.
--- Status:  Foundation phase — Bronze/Silver/Gold tables are placeholders only.
---
 -- Environment placeholders (replace before execution):
---   ${CATALOG_NAME}  e.g., main, dev_catalog
+--   ${CATALOG_NAME}  e.g., main
 --   ${SCHEMA_NAME}   e.g., ecommerce_medallion
 --   ${STORAGE_PATH}  e.g., abfss://container@account.dfs.core.windows.net/medallion
 --
--- Note: Actual table creation may use PySpark/Delta writes rather than DDL.
---       Adjust for Unity Catalog vs Hive metastore as needed.
+-- Bronze tables are created by PySpark Delta writes (src/bronze/).
+-- DDL below documents the logical schema for Unity Catalog.
 -- =============================================================================
 
--- -----------------------------------------------------------------------------
--- Catalog and schema (Unity Catalog syntax)
--- Uncomment and customize for your workspace.
--- -----------------------------------------------------------------------------
-
 -- CREATE CATALOG IF NOT EXISTS ${CATALOG_NAME};
--- CREATE SCHEMA IF NOT EXISTS ${CATALOG_NAME}.${SCHEMA_NAME}
---   COMMENT 'E-commerce Medallion pipeline — Bronze, Silver, Gold layers';
-
--- USE ${CATALOG_NAME}.${SCHEMA_NAME};
+-- CREATE SCHEMA IF NOT EXISTS ${CATALOG_NAME}.${SCHEMA_NAME};
 
 -- -----------------------------------------------------------------------------
--- Source entity definitions (logical — match CSV and data-model.md)
--- These serve as reference DDL; Bronze ingestion will materialize Delta tables.
+-- Bronze: customers (matches Phase 1 CSV + metadata)
 -- -----------------------------------------------------------------------------
-
--- customers: 10,000 rows (source CSV)
--- PK: customer_id
-CREATE TABLE IF NOT EXISTS ${CATALOG_NAME}.${SCHEMA_NAME}.source_customers_ref (
-    customer_id   INT           NOT NULL COMMENT 'Primary key',
-    first_name    STRING        NOT NULL,
-    last_name     STRING        NOT NULL,
-    email         STRING        COMMENT 'Nullable in source; required in Silver',
-    signup_date   DATE          NOT NULL,
-    country       STRING        NOT NULL
-)
-USING DELTA
-COMMENT 'Reference DDL for customers source entity — not populated in Phase 0'
-LOCATION '${STORAGE_PATH}/reference/source_customers_ref';
-
--- products: 500 rows (source CSV)
--- PK: product_id
-CREATE TABLE IF NOT EXISTS ${CATALOG_NAME}.${SCHEMA_NAME}.source_products_ref (
-    product_id    INT             NOT NULL COMMENT 'Primary key',
-    product_name  STRING          NOT NULL,
-    category      STRING          NOT NULL,
-    price         DECIMAL(10, 2)  NOT NULL,
-    created_date  DATE            NOT NULL
-)
-USING DELTA
-COMMENT 'Reference DDL for products source entity — not populated in Phase 0'
-LOCATION '${STORAGE_PATH}/reference/source_products_ref';
-
--- orders: 100,000 rows (source CSV)
--- PK: order_id | FK: customer_id, product_id
-CREATE TABLE IF NOT EXISTS ${CATALOG_NAME}.${SCHEMA_NAME}.source_orders_ref (
-    order_id      INT     NOT NULL COMMENT 'Primary key',
-    customer_id   INT     COMMENT 'FK → customers.customer_id',
-    product_id    INT     COMMENT 'FK → products.product_id',
-    quantity      INT     NOT NULL,
-    order_date    DATE    NOT NULL,
-    order_status  STRING  NOT NULL
-)
-USING DELTA
-COMMENT 'Reference DDL for orders source entity — not populated in Phase 0'
-LOCATION '${STORAGE_PATH}/reference/source_orders_ref';
-
--- -----------------------------------------------------------------------------
--- Planned Medallion tables (placeholders — implemented in later phases)
--- -----------------------------------------------------------------------------
-
--- Bronze: bronze_customers, bronze_orders, bronze_products, bronze_ingestion_log
--- Silver: silver_customers, silver_orders, silver_products, silver_dq_metrics
--- Gold:   gold_sales_by_product, gold_revenue_by_customer, gold_customer_segmentation
-
--- Example Bronze placeholder (structure finalized in Bronze phase):
-/*
 CREATE TABLE IF NOT EXISTS ${CATALOG_NAME}.${SCHEMA_NAME}.bronze_customers (
-    customer_id           INT,
-    first_name            STRING,
-    last_name             STRING,
+    customer_id           INT             NOT NULL,
+    customer_name         STRING          NOT NULL,
     email                 STRING,
-    signup_date           STRING,
-    country               STRING,
-    _ingestion_timestamp  TIMESTAMP,
-    _source_file          STRING
+    country               STRING          NOT NULL,
+    signup_date           DATE            NOT NULL,
+    customer_segment      STRING          NOT NULL,
+    lifetime_value        DECIMAL(12, 2)  NOT NULL,
+    _ingestion_timestamp  TIMESTAMP       NOT NULL,
+    _source_file          STRING          NOT NULL,
+    _batch_id             STRING          NOT NULL
 )
 USING DELTA
-LOCATION '${STORAGE_PATH}/bronze/customers';
-*/
+COMMENT 'Bronze raw customers — preserves source DQ issues'
+LOCATION '${STORAGE_PATH}/bronze/bronze_customers';
+
+-- -----------------------------------------------------------------------------
+-- Bronze: products
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ${CATALOG_NAME}.${SCHEMA_NAME}.bronze_products (
+    product_id            INT             NOT NULL,
+    product_name          STRING          NOT NULL,
+    category              STRING          NOT NULL,
+    price                 DECIMAL(10, 2)  NOT NULL,
+    cost                  DECIMAL(10, 2)  NOT NULL,
+    stock_quantity        INT             NOT NULL,
+    reorder_level         INT             NOT NULL,
+    _ingestion_timestamp  TIMESTAMP       NOT NULL,
+    _source_file          STRING          NOT NULL,
+    _batch_id             STRING          NOT NULL
+)
+USING DELTA
+LOCATION '${STORAGE_PATH}/bronze/bronze_products';
+
+-- -----------------------------------------------------------------------------
+-- Bronze: orders
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ${CATALOG_NAME}.${SCHEMA_NAME}.bronze_orders (
+    order_id              INT             NOT NULL,
+    customer_id           STRING,
+    order_date            DATE            NOT NULL,
+    product_id            STRING,
+    quantity              INT             NOT NULL,
+    unit_price            DECIMAL(10, 2)  NOT NULL,
+    total_amount          DECIMAL(12, 2)  NOT NULL,
+    order_status          STRING          NOT NULL,
+    payment_date          DATE,
+    _ingestion_timestamp  TIMESTAMP       NOT NULL,
+    _source_file          STRING          NOT NULL,
+    _batch_id             STRING          NOT NULL
+)
+USING DELTA
+LOCATION '${STORAGE_PATH}/bronze/bronze_orders';
+
+-- -----------------------------------------------------------------------------
+-- Bronze: ingestion log (append per run)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ${CATALOG_NAME}.${SCHEMA_NAME}.bronze_ingestion_log (
+    entity_name           STRING          NOT NULL,
+    source_file           STRING          NOT NULL,
+    row_count             INT             NOT NULL,
+    ingestion_timestamp   TIMESTAMP       NOT NULL,
+    batch_id              STRING          NOT NULL,
+    status                STRING          NOT NULL
+)
+USING DELTA
+LOCATION '${STORAGE_PATH}/bronze/bronze_ingestion_log';
+
+-- -----------------------------------------------------------------------------
+-- Silver / Gold — implemented in later phases
+-- -----------------------------------------------------------------------------

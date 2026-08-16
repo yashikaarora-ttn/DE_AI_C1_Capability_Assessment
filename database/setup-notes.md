@@ -1,12 +1,17 @@
 # Database Setup Notes
 
-Guidance for configuring the Databricks database environment before running the pipeline. **Not yet executed** — template for upcoming implementation phases.
+Guidance for configuring the Databricks environment and running Bronze ingestion.
 
 ---
 
 ## Overview
 
-The pipeline will use Databricks with **Delta Lake** tables organized in a Medallion layout (Bronze, Silver, Gold). Table DDL reference is in `schema.sql`; actual tables will be created via PySpark writes or SQL during Bronze/Silver/Gold implementation.
+The pipeline uses **Delta Lake** tables in a Medallion layout. Bronze ingestion is implemented in `src/bronze/` and creates:
+
+- `bronze_customers`, `bronze_orders`, `bronze_products`
+- `bronze_ingestion_log`
+
+DDL reference: `database/schema.sql`
 
 ---
 
@@ -14,90 +19,83 @@ The pipeline will use Databricks with **Delta Lake** tables organized in a Medal
 
 | Item | Notes |
 |------|-------|
-| Databricks workspace access | Admin or sufficient privileges to create schemas/tables |
-| Unity Catalog (recommended) | Or Hive metastore — adjust SQL syntax accordingly |
-| Storage location | ADLS Gen2, S3, or DBFS path for Delta files |
-| Cluster | Single-user or shared cluster with Delta and PySpark enabled |
+| Databricks workspace | With Delta-enabled cluster (DBR 13+ recommended) |
+| Unity Catalog (recommended) | Or Hive metastore |
+| Storage | ADLS Gen2, S3, or DBFS path for Delta |
+| Sample CSVs | From Phase 1 generator in `data/` or workspace path |
 
 ---
 
-## Configuration Placeholders
+## Configuration
 
-Replace before first pipeline run:
+Set on cluster or job:
 
-| Placeholder | Description | Example |
-|-------------|-------------|---------|
-| `${CATALOG_NAME}` | Unity Catalog name | `main` |
-| `${SCHEMA_NAME}` | Schema for all pipeline tables | `ecommerce_medallion` |
-| `${STORAGE_PATH}` | Root path for Delta table locations | `abfss://...` or `dbfs:/medallion` |
+| Variable | Example | Required |
+|----------|---------|----------|
+| `BRONZE_CATALOG` | `main` | Recommended (Unity Catalog) |
+| `BRONZE_SCHEMA` | `ecommerce_medallion` | Yes |
+| `BRONZE_STORAGE_PATH` | `abfss://.../medallion` or `dbfs:/medallion` | Recommended |
+| `BRONZE_INPUT_DIR` | `/Workspace/Repos/.../data` | Yes (path to CSVs) |
 
-Document your chosen values here when configured:
+Document your values when configured:
 
 ```text
 CATALOG_NAME:   [NOT CONFIGURED]
-SCHEMA_NAME:    [NOT CONFIGURED]
+SCHEMA_NAME:    ecommerce_medallion (default)
 STORAGE_PATH:   [NOT CONFIGURED]
+INPUT_DIR:      data (default, repo-relative locally)
 ```
 
 ---
 
-## Setup Steps (Planned)
+## Setup Steps
 
 ### Step 1 — Create catalog and schema
 
 ```sql
--- Unity Catalog example (customize placeholders)
 CREATE CATALOG IF NOT EXISTS <catalog>;
 CREATE SCHEMA IF NOT EXISTS <catalog>.<schema>
   COMMENT 'E-commerce Medallion pipeline';
 ```
 
-### Step 2 — Verify storage access
+### Step 2 — Generate or upload CSVs
 
-- Confirm cluster can read/write to `${STORAGE_PATH}`
-- Test with a small Delta write in a notebook
-
-### Step 3 — Run schema reference (optional)
-
-- Review `schema.sql` for entity definitions
-- Execute relevant sections after replacing placeholders
-- Or defer to PySpark `saveAsTable` during Bronze ingestion
-
-### Step 4 — Pipeline execution order
-
-1. Generate CSVs (Phase 1)
-2. Bronze ingestion → creates Bronze Delta tables
-3. Silver validation → creates Silver tables + `silver_dq_metrics`
-4. Gold aggregation → creates Gold tables
-5. Dashboard → query Gold tables
-
----
-
-## Unity Catalog vs Hive Metastore
-
-| Feature | Unity Catalog | Hive Metastore |
-|---------|---------------|----------------|
-| Syntax | `catalog.schema.table` | `schema.table` or `database.table` |
-| Governance | Built-in grants | Workspace-level |
-| Recommendation | Use if available | Fallback for older workspaces |
-
-Note which mode your workspace uses:
-
-```text
-Workspace mode: [UNITY CATALOG / HIVE — NOT CONFIGURED]
+```bash
+python src/data_generation/generate_sample_data.py
 ```
 
+Upload to Databricks if running remotely.
+
+### Step 3 — Run Bronze ingestion
+
+```bash
+export BRONZE_CATALOG=main
+export BRONZE_SCHEMA=ecommerce_medallion
+export BRONZE_STORAGE_PATH=dbfs:/tmp/medallion_assessment
+export BRONZE_INPUT_DIR=data
+python src/bronze/ingest_all.py
+```
+
+### Step 4 — Verify (Databricks)
+
+```sql
+SELECT COUNT(*) FROM <catalog>.<schema>.bronze_customers;  -- expect 10000
+SELECT COUNT(*) FROM <catalog>.<schema>.bronze_orders;     -- expect 100000
+SELECT COUNT(*) FROM <catalog>.<schema>.bronze_products;   -- expect 500
+SELECT * FROM <catalog>.<schema>.bronze_ingestion_log ORDER BY ingestion_timestamp DESC;
+```
+
+**Databricks execution not yet validated in this repo** — verify after first cluster run.
+
 ---
 
-## Troubleshooting (Template)
+## Pipeline execution order
 
-| Issue | Possible cause | Action |
-|-------|----------------|--------|
-| `TABLE_OR_VIEW_NOT_FOUND` | Schema not created or wrong catalog | Verify `USE` statement and permissions |
-| Storage permission error | Cluster identity lacks write access | Check ADLS RBAC or S3 IAM |
-| Delta protocol error | Cluster runtime too old | Upgrade to DBR with Delta 2.x+ |
-
-Add actual issues encountered during setup in `debugging-notes.md`.
+1. Generate CSVs (Phase 1) ✅
+2. Bronze ingestion (Phase 2) ✅ code ready
+3. Silver validation (planned)
+4. Gold aggregation (planned)
+5. Dashboard (planned)
 
 ---
 
@@ -105,7 +103,7 @@ Add actual issues encountered during setup in `debugging-notes.md`.
 
 | Task | Status |
 |------|--------|
-| Catalog/schema created | Not done |
-| Storage path configured | Not done |
-| Reference DDL executed | Not done |
-| Bronze tables created | Not done |
+| Catalog/schema DDL documented | Done |
+| Bronze PySpark scripts | Done |
+| Local Bronze transform tests | Done |
+| Databricks Delta integration run | Not executed in repo |
