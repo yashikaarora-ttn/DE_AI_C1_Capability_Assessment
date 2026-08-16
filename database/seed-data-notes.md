@@ -1,63 +1,89 @@
 # Seed Data Notes
 
-Plan for generating realistic e-commerce CSV datasets with intentional data-quality issues. **Data not yet generated** — Phase 1 implementation.
+Sample e-commerce CSV datasets produced by `src/data_generation/generate_sample_data.py` (Phase 1).
 
 ---
 
 ## Overview
 
-Three CSV files will be produced by `src/data_generation/` (planned):
-
-| File | Rows | Primary key |
-|------|------|-------------|
-| `customers.csv` | 10,000 | `customer_id` |
-| `orders.csv` | 100,000 | `order_id` |
-| `products.csv` | 500 | `product_id` |
-
-Output location (planned): `data/raw/` (gitignored when generated).
+| File | Rows | Primary key | Output path |
+|------|------|-------------|-------------|
+| `customers.csv` | 10,000 | `customer_id` | `data/customers.csv` |
+| `orders.csv` | 100,000 | `order_id` | `data/orders.csv` |
+| `products.csv` | 500 | `product_id` | `data/products.csv` |
 
 ---
 
-## Generation Approach (Planned)
+## Generation
 
-1. **Seeded randomness** — Fixed seed for reproducible datasets and tests
-2. **Realistic values** — Faker or curated name/email/category lists
-3. **Valid base population** — Generate clean data first
-4. **Inject DQ issues** — Apply intentional defects at exact counts
-5. **Validate counts** — `pytest` asserts row counts and defect counts before pipeline use
+```bash
+pip install -r requirements.txt
+python src/data_generation/generate_sample_data.py
+```
+
+Generation order: **customers → products → orders** (masters before transactions).
+
+---
+
+## Duplicate Row Definition
+
+A **duplicate row** is any row whose primary key value appears more than once in the file. All rows in duplicated key groups are counted.
+
+| Target | Implementation |
+|--------|----------------|
+| 10 duplicate `customer_id` rows | `customer_id` 1–5 each appear exactly twice |
+| 20 duplicate `order_id` rows | 10 order ids each appear exactly twice |
 
 ---
 
 ## Intentional Data-Quality Issues
 
-| Dataset | Issue | Count | Implementation note |
-|---------|-------|-------|---------------------|
-| customers | NULL `email` | 50 | Set email to empty/NULL on random valid rows |
-| customers | Duplicate `customer_id` | 10 | Reuse 10 existing IDs with different row content |
-| orders | NULL `customer_id` | 100 | NULL out FK on random rows |
-| orders | NULL `product_id` | 200 | NULL out FK on random rows |
-| orders | Invalid `customer_id` | 50 | Use IDs not in customers (e.g., 90001–90050) |
-| orders | Invalid `product_id` | 30 | Use IDs not in products (e.g., 9001–9030) |
-| orders | Duplicate `order_id` | 20 | Reuse 20 existing IDs with different row content |
+### Customers
 
-**Important:** NULL and invalid FK issues are **separate populations** — do not double-count the same row unless intentionally overlapping (document if overlap occurs).
+| Issue | Count | Implementation |
+|-------|-------|----------------|
+| NULL `email` | 50 | Empty/NULL on rows with `customer_id` > 5 |
+| Duplicate `customer_id` rows | 10 | ids 1–5 duplicated with different attributes |
+
+### Orders (disjoint row sets)
+
+| Issue | Count | Implementation |
+|-------|-------|----------------|
+| NULL `customer_id` | 100 | Dedicated rows |
+| NULL `product_id` | 200 | Dedicated rows |
+| Invalid `customer_id` | 50 | IDs 90001–90050 (non-null) |
+| Invalid `product_id` | 30 | IDs 9001–9030 (non-null) |
+| Duplicate `order_id` rows | 20 | 10 ids × 2 rows |
+
+Clean valid orders: **99,600** rows.
+
+NULL and invalid FK categories do **not** overlap. Duplicate order rows are separate from NULL/invalid issue rows.
 
 ---
 
-## ID Ranges (Planned)
+## ID Ranges
 
 | Entity | Valid range | Invalid reference range |
 |--------|-------------|-------------------------|
-| customers | 1 – 10,000 | 90001+ for invalid FK targets |
-| products | 1 – 500 | 9001+ for invalid FK targets |
-| orders | 1 – 100,000 | Duplicates reuse IDs within range |
+| customers | 1 – 9,995 (+ duplicates for ids 1–5) | 90001–90050 for order FKs |
+| products | 1 – 500 | 9001–9030 for order FKs |
+| orders | 1 – 99,990 (100,000 rows; duplicate groups use ids 99601–99610) | Duplicate groups use dedicated id ranges |
 
 ---
 
-## Referential Integrity for Valid Rows
+## CSV Schema
 
-- Valid orders should reference `customer_id` ∈ [1, 10000] and `product_id` ∈ [1, 500]
-- Generation order: **customers → products → orders** (masters before transactions)
+### customers
+
+`customer_id`, `customer_name`, `email`, `country`, `signup_date`, `customer_segment`, `lifetime_value`
+
+### products
+
+`product_id`, `product_name`, `category`, `price`, `cost`, `stock_quantity`, `reorder_level`
+
+### orders
+
+`order_id`, `customer_id`, `order_date`, `product_id`, `quantity`, `unit_price`, `total_amount`, `order_status`, `payment_date`
 
 ---
 
@@ -68,25 +94,27 @@ Output location (planned): `data/raw/` (gitignored when generated).
 | Format | CSV |
 | Header | Yes |
 | Encoding | UTF-8 |
-| Delimiter | Comma |
-| Quoting | Minimal (quote fields with commas if needed) |
 | Date format | `YYYY-MM-DD` |
+| NULL representation | Empty field |
 
 ---
 
-## Verification Checklist (Phase 1)
+## Verification
 
-- [ ] `customers.csv` has exactly 10,000 rows
-- [ ] `orders.csv` has exactly 100,000 rows
-- [ ] `products.csv` has exactly 500 rows
-- [ ] NULL email count = 50
-- [ ] Duplicate customer_id count = 10 (rows involved)
-- [ ] NULL customer_id on orders = 100
-- [ ] NULL product_id on orders = 200
-- [ ] Invalid customer_id on orders = 50
-- [ ] Invalid product_id on orders = 30
-- [ ] Duplicate order_id count = 20 (rows involved)
-- [ ] All valid FKs resolve to master tables
+Automated: `pytest tests/test_data_generation.py -v`
+
+Manual checklist:
+
+- [x] Row counts: 10,000 / 500 / 100,000
+- [x] NULL email = 50
+- [x] Duplicate customer_id rows = 10
+- [x] NULL customer_id on orders = 100
+- [x] NULL product_id on orders = 200
+- [x] Invalid customer_id = 50
+- [x] Invalid product_id = 30
+- [x] Duplicate order_id rows = 20
+- [x] Valid FKs on clean rows
+- [x] `total_amount = quantity × unit_price`
 
 ---
 
@@ -94,8 +122,8 @@ Output location (planned): `data/raw/` (gitignored when generated).
 
 | Task | Status |
 |------|--------|
-| Generator script | Not implemented |
-| CSV files produced | Not done |
-| Verification tests | Not implemented |
+| Generator script | Done (`generate_sample_data.py`) |
+| Verification tests | Done |
+| CSV files produced | Run generator locally |
 
-See `src/data_generation/DATA_GENERATION_NOTES.md` for module-level notes.
+See `src/data_generation/DATA_GENERATION_NOTES.md` for module details.

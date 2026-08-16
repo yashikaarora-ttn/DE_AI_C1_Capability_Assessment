@@ -1,6 +1,6 @@
 # Data Generation Notes
 
-Module: `src/data_generation/` — **Not yet implemented** (Phase 1).
+Module: `src/data_generation/generate_sample_data.py` — **Implemented** (Phase 1).
 
 ---
 
@@ -8,53 +8,118 @@ Module: `src/data_generation/` — **Not yet implemented** (Phase 1).
 
 Generate three realistic CSV datasets for the e-commerce Medallion pipeline:
 
-- `customers.csv` — 10,000 rows
-- `orders.csv` — 100,000 rows
-- `products.csv` — 500 rows
+| File | Rows |
+|------|------|
+| `customers.csv` | 10,000 |
+| `orders.csv` | 100,000 |
+| `products.csv` | 500 |
 
-Datasets must include **intentional data-quality issues** at exact counts specified in `data-quality-strategy.md`.
+Datasets include **intentional data-quality issues** at exact counts required by the assessment.
 
 ---
 
-## Planned Module Structure
+## Duplicate Row Definition
+
+Used consistently by the generator and `tests/test_data_generation.py`:
+
+> For a primary-key column, the **duplicate row count** is the number of rows whose key value appears **more than once** in the dataset. Every row belonging to a duplicated key is counted.
+
+| Assessment target | Implementation |
+|-------------------|----------------|
+| 10 duplicate `customer_id` rows | 5 customer_ids (1–5) each appear **exactly twice** → 10 rows |
+| 20 duplicate `order_id` rows | 10 order_ids each appear **exactly twice** → 20 rows |
+
+---
+
+## Intentional DQ Issues (Disjoint Categories)
+
+### Customers
+
+| Issue | Count | Notes |
+|-------|-------|-------|
+| NULL `email` | 50 | Applied to rows with `customer_id` > 5 (disjoint from duplicate-id rows) |
+| Duplicate `customer_id` rows | 10 | ids 1–5 each appear twice |
+
+### Orders
+
+Order issue categories are **disjoint row sets** (no overlap):
+
+| Issue | Count |
+|-------|-------|
+| NULL `customer_id` | 100 |
+| NULL `product_id` | 200 |
+| Invalid `customer_id` (non-null, not in customers) | 50 (IDs 90001–90050) |
+| Invalid `product_id` (non-null, not in products) | 30 (IDs 9001–9030) |
+| Duplicate `order_id` rows | 20 (10 ids × 2 rows) |
+
+Clean valid orders: **99,600** rows with unique `order_id` and valid FKs.
+
+---
+
+## Module Structure
 
 ```text
 src/data_generation/
-├── generate_datasets.py    # Main entry point (planned)
-├── config.py               # Row counts, seed, output path (planned)
-└── inject_dq_issues.py     # DQ defect injection logic (planned)
+├── __init__.py
+├── generate_sample_data.py   # Generator, DQ counters, CLI
+└── DATA_GENERATION_NOTES.md
+```
+
+Key functions:
+
+- `generate_customers()`, `generate_products()`, `generate_orders()`
+- `generate_all(seed, output_dir)` — full pipeline
+- `count_duplicate_key_rows()`, `count_null_emails()`, `count_invalid_foreign_keys()` — shared with tests
+
+---
+
+## Output Location
+
+| Path | Description |
+|------|-------------|
+| `data/customers.csv` | Customer master |
+| `data/products.csv` | Product catalog |
+| `data/orders.csv` | Order transactions |
+
+Files are **gitignored** (see root `.gitignore`).
+
+---
+
+## Usage
+
+From repository root (use a virtual environment on externally managed Python installs):
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python src/data_generation/generate_sample_data.py
+pytest tests/test_data_generation.py -v
 ```
 
 ---
 
-## Dependencies (Planned)
+## Reproducibility
 
-- `pandas` or pure Python CSV writer
-- `faker` (optional) for realistic names/emails
-- `pytest` for count verification tests
-
-Dependencies will be added to `requirements.txt` in Phase 1.
+- Default seed: `42` (`DEFAULT_SEED` in module)
+- Uses `random.Random(seed)` and `faker.seed_instance(seed)` on a dedicated Faker instance
+- Same seed → identical CSV output
 
 ---
 
-## Output
+## Dependencies
 
-| Path | Description |
-|------|-------------|
-| `data/raw/customers.csv` | Customer master |
-| `data/raw/orders.csv` | Order transactions |
-| `data/raw/products.csv` | Product catalog |
-
-Generated files will be gitignored (see root `.gitignore`).
+See `requirements.txt`: `pandas`, `faker`, `pytest`.
 
 ---
 
 ## Related Documentation
 
-- `database/seed-data-notes.md` — Issue counts and ID ranges
-- `data-model.md` — Column definitions
-- `data-quality-strategy.md` — Validation rules that must detect injected issues
-- `ai-prompts/data-generation.md` — AI prompt history for this phase
+- `database/seed-data-notes.md` — setup and verification checklist
+- `data-model.md` — entity schemas (note: Phase 1 CSV columns match generator output)
+- `data-quality-strategy.md` — Silver rules that must detect these issues
+- `tests/test_data_generation.py` — automated verification
+- `ai-prompts/data-generation.md` — AI prompt history
 
 ---
 
@@ -62,7 +127,7 @@ Generated files will be gitignored (see root `.gitignore`).
 
 | Task | Status |
 |------|--------|
-| Generator implementation | Not started |
-| DQ injection logic | Not started |
-| Verification tests | Not started |
-| CSV output | Not generated |
+| Generator implementation | Done |
+| DQ injection logic | Done |
+| Verification tests | Done |
+| CSV output | Run generator to produce |
