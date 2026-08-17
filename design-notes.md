@@ -54,7 +54,7 @@ Bronze answers: *"What did we receive, when, and how much?"*
 | Flagging | Each row gets `dq_status` (`PASS`/`FAIL`) and `dq_failure_reasons` array |
 | Metrics | `silver_dq_metrics` — RULE per reason + OVERALL per entity (**implemented**) |
 
-**Phase 3 (complete):** Full Silver validation, `dq_metrics.py`, `create_silver_tables.py`, `05_quality_business_logic.py` (delegates to type module). Gold and Dashboard remain.
+**Phase 4 (complete):** Gold aggregations (`gold_common.py`, `create_gold_tables.py`, SQL definitions), trusted business-order policy, reconciliation tests. Dashboard remains.
 
 Silver answers: *"Which rows are trustworthy, which failed, and why?"*
 
@@ -62,12 +62,14 @@ Silver answers: *"Which rows are trustworthy, which failed, and why?"*
 
 | Responsibility | Detail |
 |----------------|--------|
-| Input | **Only** Silver rows where `dq_status = 'PASS'` |
-| Sales by Product | Quantity and revenue grouped by product |
-| Revenue by Customer | Total revenue and order counts per customer |
-| Customer Segmentation | Assign segment labels based on revenue tiers |
+| Input | PASS Silver entities; realized metrics from **trusted business orders** |
+| Trusted business order | PASS + `Completed` + joins PASS customer and PASS product |
+| Sales by Product | `total_orders`, `total_revenue`, `avg_order_value` per product |
+| Revenue by Customer | Per PASS customer; `lifetime_value_actual` from observed orders |
+| Customer Segmentation | Mutually exclusive: Inactive, One-Time, Repeat, High-Value |
+| Trends | Daily and weekly `total_orders`, revenue, AOV |
 
-Gold answers: *"What are the business metrics on clean data?"*
+Gold answers: *"What are the business metrics on clean, joinable data?"*
 
 ### Dashboard — Consumption
 
@@ -117,22 +119,32 @@ Invalid rows are **excluded from Gold joins and aggregations** but remain querya
 
 ```text
 silver_customers  (dq_status = 'PASS')  ──┐
-silver_products   (dq_status = 'PASS')  ──┼──► Gold aggregations
-silver_orders     (dq_status = 'PASS')  ──┘
+silver_products   (dq_status = 'PASS')  ──┼──► trusted_business_orders
+silver_orders     (dq_status = 'PASS', order_status = 'Completed') ──┘
+         │
+         ├──► gold_sales_by_product
+         ├──► gold_revenue_by_customer
+         ├──► gold_daily_weekly_trends
+         └──► gold_customer_segmentation
 ```
 
-**Join strategy (planned):**
+**Join strategy (implemented):**
 
-- Orders joined to valid products for price and product attributes
-- Orders joined to valid customers for customer attributes
-- Revenue = `quantity × price`
-- Duplicate or invalid orders excluded before aggregation
+- Trusted business orders: inner join PASS customer and PASS product on order FKs
+- PASS orders referencing FAIL customers/products are excluded from realized Gold metrics
+- Revenue uses Silver `total_amount` on trusted business orders (not recomputed from price × quantity)
+- Duplicate, NULL FK, and invalid FK orders excluded via Silver `dq_status = FAIL`
 
-**Segmentation (planned):**
+**Segmentation (implemented):**
 
-- Compute per-customer revenue from valid orders
-- Assign tiers (e.g., High ≥ 80th percentile, Medium 20–80th, Low < 20th)
-- Document exact thresholds in Gold implementation
+| Segment | Rule |
+|---------|------|
+| Inactive | 0 trusted business orders |
+| One-Time | 1 trusted business order |
+| High-Value | >1 orders AND revenue ≥ `GOLD_HIGH_VALUE_THRESHOLD` (default 1000) |
+| Repeat | >1 orders AND revenue below threshold |
+
+**Reconciliation:** Sum of `total_revenue` across products equals sum across customers equals total trusted business-order revenue.
 
 ---
 
@@ -143,7 +155,7 @@ silver_orders     (dq_status = 'PASS')  ──┘
 | Data generation | Row counts; exact DQ issue counts | `pytest` with fixed random seed |
 | Silver validators | Each rule flags expected rows | Small CSV fixtures + assertions |
 | Bronze | Metadata columns; row count parity with source | Spark integration test on temp Delta path |
-| Gold | Revenue math; grouping; segmentation boundaries | Unit tests with known mini datasets |
+| Gold | Revenue math; grouping; segmentation; reconciliation | `test_gold_aggregations.py` + seed-42 e2e |
 | SQL / Dashboard | Queries execute without error | Smoke test after Gold is populated |
 
 **Principles:**

@@ -94,10 +94,31 @@ SELECT * FROM <catalog>.<schema>.bronze_ingestion_log ORDER BY ingestion_timesta
 1. Generate CSVs (Phase 1) ✅
 2. Bronze ingestion (Phase 2) ✅
 3. Silver validation + metrics (Phase 3) ✅ code ready
-4. Gold aggregation (planned)
+4. Gold aggregation (Phase 4) ✅ code ready
 5. Dashboard (planned)
 
-### Silver environment variables
+### Gold environment variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `GOLD_CATALOG` | Silver/Bronze catalog | Unity Catalog name |
+| `GOLD_SCHEMA` | Silver/Bronze schema | Schema name |
+| `GOLD_STORAGE_PATH` | Silver/Bronze storage path | Delta root path |
+| `GOLD_HIGH_VALUE_THRESHOLD` | `1000` | High-Value segmentation threshold |
+| `GOLD_WRITE_MODE` | `overwrite` | Gold snapshot tables |
+
+### Run Gold on Databricks (after Silver Delta tables exist)
+
+```bash
+export GOLD_CATALOG=main
+export GOLD_SCHEMA=ecommerce_medallion
+export GOLD_STORAGE_PATH=dbfs:/tmp/medallion_assessment
+export GOLD_HIGH_VALUE_THRESHOLD=1000
+python src/gold/create_gold_tables.py
+```
+
+**Databricks Gold Delta integration not yet validated in this repo** — local aggregations and reconciliation tested via pytest and `scripts/run_gold_validation.py`.
+
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
@@ -140,6 +161,6 @@ python src/silver/create_silver_tables.py
 |------|--------|
 | Catalog/schema DDL documented | Done |
 | Bronze PySpark scripts | Done |
-| Silver validation + metrics | Done |
-| Local Silver transform/metrics tests | Done |
-| Databricks Delta integration run (Bronze/Silver) | Not executed in repo |
+| Gold aggregations | Done |
+| Local Gold transform/reconciliation tests | Done |
+| Databricks Delta integration run (Bronze/Silver/Gold) | Not executed in repo |

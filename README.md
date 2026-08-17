@@ -4,7 +4,7 @@ Data Engineering AI Capability Assessment repository.
 
 A production-oriented **Databricks Medallion Architecture** pipeline for e-commerce analytics. The pipeline ingests customer, product, and order data through **Bronze → Silver → Gold** layers and exposes business metrics via a **SQL dashboard**.
 
-**Current status: Phase 3 Silver complete locally.** Full validation, DQ metrics, and table-creation orchestration; **86 tests passing**. Gold and Dashboard remain.
+**Current status: Phase 4 Gold complete locally.** Trusted Silver aggregations, SQL + PySpark parity, reconciliation tests; **101 tests passing**. Dashboard remains.
 
 ---
 
@@ -161,7 +161,77 @@ Orchestration: `silver_foundation.apply_silver_pipeline()` or `apply_silver_all(
 | `src/silver/silver_config.py` | Silver config and Delta write helpers |
 | `src/silver/create_silver_tables.py` | Full pipeline + optional Delta writes |
 
-**Not yet:** Gold, Dashboard.
+**Not yet:** Dashboard.
+
+---
+
+## Gold Aggregations (Phase 4)
+
+Gold consumes **only trusted Silver data** and computes business-ready metrics.
+
+### Trusted-data policy
+
+| Rule | Detail |
+|------|--------|
+| Entity trust | `dq_status = 'PASS'` on customers, products, and orders |
+| Realized revenue | `order_status = 'Completed'` only |
+| Business orders | PASS Completed orders that join PASS customer **and** PASS product |
+
+A PASS order is excluded from Gold realized metrics when its customer or product failed Silver (cannot form a trusted business join). Failed Silver rows (NULL FK, invalid FK, duplicates, etc.) never influence Gold metrics.
+
+### Aggregations
+
+| Table | Module | Grain |
+|-------|--------|-------|
+| `gold_sales_by_product` | `01_sales_by_product.sql`, `gold_common.build_sales_by_product` | Per product with qualifying orders |
+| `gold_revenue_by_customer` | `02_revenue_by_customer.sql`, `build_revenue_by_customer` | Per PASS customer (zeros if no business orders) |
+| `gold_daily_weekly_trends` | `03_daily_weekly_trends.sql`, `build_daily_weekly_trends` | Daily + weekly periods |
+| `gold_customer_segmentation` | `04_customer_segmentation.sql`, `build_customer_segmentation` | Per segment type |
+
+### Segmentation (mutually exclusive)
+
+Evaluated on trusted business orders per PASS customer:
+
+| Segment | Rule |
+|---------|------|
+| `Inactive` | Zero trusted completed business orders |
+| `One-Time` | Exactly one trusted completed business order |
+| `High-Value` | More than one order AND `total_revenue >= HIGH_VALUE_THRESHOLD` |
+| `Repeat` | More than one order AND revenue below threshold |
+
+Default `GOLD_HIGH_VALUE_THRESHOLD` = **1000** (env-configurable).
+
+`lifetime_value_actual` in `gold_revenue_by_customer` is **observed** trusted revenue from orders; source `lifetime_value` on customers is not used for Gold metrics.
+
+### Environment variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `GOLD_CATALOG` | falls back to Silver/Bronze catalog | Unity Catalog |
+| `GOLD_SCHEMA` | Silver/Bronze schema | Schema name |
+| `GOLD_STORAGE_PATH` | Silver/Bronze storage path | Delta location |
+| `GOLD_HIGH_VALUE_THRESHOLD` | `1000` | High-Value segmentation threshold |
+| `GOLD_WRITE_MODE` | `overwrite` | Gold snapshot write mode |
+
+### Run Gold
+
+```bash
+pytest tests/test_gold_aggregations.py -v
+python src/gold/create_gold_tables.py
+python scripts/run_gold_validation.py   # generated-data report
+```
+
+### Reconciliation
+
+Product-level and customer-level `total_revenue` sums both equal the trusted business-order revenue total. Segmentation `customer_count` sums reconcile to PASS customer count.
+
+**Locally validated:** PySpark aggregations, SQL definition files (not executed on Databricks), unit/integration tests, seed-42 reconciliation via `scripts/run_gold_validation.py`.
+
+**Not yet validated in Databricks:** Gold Delta writes (`create_gold_tables.py`), Gold SQL execution in Databricks SQL/notebooks, Dashboard.
+
+---
+
+## Silver Validation (Phase 3)
 
 ### Silver write strategy
 
@@ -275,11 +345,11 @@ Environment-specific values (catalog name, schema name, storage paths) will be d
 2. **Data generation** — `python src/data_generation/generate_sample_data.py` ✅
 3. **Bronze** — `python src/bronze/ingest_all.py` ✅ (local transform tests; Delta on Databricks)
 4. **Silver** — Full validation pipeline ✅; DQ metrics — pending
-5. **Gold** — Build sales-by-product, revenue-by-customer, and customer segmentation tables
+5. **Gold** — Build sales-by-product, revenue-by-customer, trends, and segmentation ✅
 6. **Dashboard** — Run SQL queries and build visualizations
 7. **Validate** — Run tests; review DQ reports; verify dashboard outputs
 
-Steps 5–7 and remaining Silver work are **not yet implemented**.
+Steps 6–7 and Dashboard work are **not yet implemented**.
 
 ---
 

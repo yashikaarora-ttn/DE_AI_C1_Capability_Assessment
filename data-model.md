@@ -158,23 +158,26 @@ Bronze metadata columns (`_ingestion_timestamp`, `_source_file`, `_batch_id`) fl
 
 ---
 
-## Gold Layer — Planned Tables
+## Gold Layer Tables
 
 | Table | Grain | Key columns |
 |-------|-------|-------------|
-| `gold_sales_by_product` | One row per product | `product_id` |
-| `gold_revenue_by_customer` | One row per customer | `customer_id` |
-| `gold_customer_segmentation` | One row per customer | `customer_id`, `segment` |
+| `gold_sales_by_product` | One row per product with business orders | `product_id`, `total_orders`, `total_revenue`, `avg_order_value` |
+| `gold_revenue_by_customer` | One row per PASS customer | `customer_id`, `total_orders`, `total_revenue`, `lifetime_value_actual` |
+| `gold_daily_weekly_trends` | One row per period | `period_type`, `period_start`, `total_orders`, `total_revenue` |
+| `gold_customer_segmentation` | One row per segment | `segment_type`, `customer_count`, `avg_revenue`, `total_revenue` |
 
 ---
 
 ## Revenue Calculation (Gold)
 
-```text
-line_revenue = orders.quantity × products.price
-```
+Gold realized revenue uses Silver `orders.total_amount` for **trusted business orders**:
 
-Gold will use validated Silver data only.
+- `dq_status = 'PASS'` on order, customer, and product
+- `order_status = 'Completed'`
+- Inner join to PASS customer and PASS product
+
+`lifetime_value_actual` on `gold_revenue_by_customer` is the sum of trusted business-order amounts per customer (observed). Source `customers.lifetime_value` is not used for Gold metrics.
 
 ---
 

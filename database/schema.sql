@@ -171,5 +171,60 @@ COMMENT 'Silver DQ metrics — RULE per reason code + OVERALL row-level per enti
 LOCATION '${STORAGE_PATH}/silver/silver_dq_metrics';
 
 -- -----------------------------------------------------------------------------
--- Gold — planned in later phase
+-- Gold: sales by product
 -- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ${CATALOG_NAME}.${SCHEMA_NAME}.gold_sales_by_product (
+    product_id            INT             NOT NULL,
+    product_name          STRING          NOT NULL,
+    category              STRING          NOT NULL,
+    total_orders          BIGINT          NOT NULL,
+    total_revenue         DECIMAL(32, 2)  NOT NULL,
+    avg_order_value       DECIMAL(32, 6)  NOT NULL
+)
+USING DELTA
+COMMENT 'Gold sales by product — trusted business orders only'
+LOCATION '${STORAGE_PATH}/gold/gold_sales_by_product';
+
+-- -----------------------------------------------------------------------------
+-- Gold: revenue by customer
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ${CATALOG_NAME}.${SCHEMA_NAME}.gold_revenue_by_customer (
+    customer_id           INT             NOT NULL,
+    customer_name         STRING          NOT NULL,
+    customer_segment      STRING          NOT NULL,
+    total_orders          BIGINT          NOT NULL,
+    total_revenue         DECIMAL(32, 2)  NOT NULL,
+    avg_order_value       DECIMAL(32, 6)  NOT NULL,
+    lifetime_value_actual DECIMAL(32, 2)  NOT NULL
+)
+USING DELTA
+COMMENT 'Gold revenue by customer — all PASS customers; observed lifetime_value_actual'
+LOCATION '${STORAGE_PATH}/gold/gold_revenue_by_customer';
+
+-- -----------------------------------------------------------------------------
+-- Gold: daily / weekly trends
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ${CATALOG_NAME}.${SCHEMA_NAME}.gold_daily_weekly_trends (
+    period_type           STRING          NOT NULL,
+    period_start          DATE            NOT NULL,
+    total_orders          BIGINT          NOT NULL,
+    total_revenue         DECIMAL(32, 2)  NOT NULL,
+    avg_order_value       DECIMAL(32, 6)  NOT NULL
+)
+USING DELTA
+COMMENT 'Gold daily and weekly trends from trusted business orders'
+LOCATION '${STORAGE_PATH}/gold/gold_daily_weekly_trends';
+
+-- -----------------------------------------------------------------------------
+-- Gold: customer segmentation
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ${CATALOG_NAME}.${SCHEMA_NAME}.gold_customer_segmentation (
+    segment_type          STRING          NOT NULL,
+    customer_count        BIGINT          NOT NULL,
+    avg_revenue           DECIMAL(32, 6)  NOT NULL,
+    total_revenue         DECIMAL(32, 2)  NOT NULL
+)
+USING DELTA
+COMMENT 'Gold customer segmentation — mutually exclusive segments over PASS customers'
+LOCATION '${STORAGE_PATH}/gold/gold_customer_segmentation';
+

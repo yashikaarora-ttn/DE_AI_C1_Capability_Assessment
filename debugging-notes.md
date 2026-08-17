@@ -137,17 +137,20 @@ Also capture related AI prompts in `ai-prompts/debugging.md`.
 
 ---
 
+### Issue 009 — Gold product vs customer revenue reconciliation mismatch
+
 | Field | Detail |
 |-------|--------|
-| **Date** | `[DATE]` |
-| **Phase** | `[e.g., Silver validation]` |
-| **Symptom** | `[DESCRIPTION]` |
-| **Context** | `[FILE, COMMAND, NOTEBOOK]` |
-| **Root cause** | `[CAUSE]` |
-| **Resolution** | `[FIX]` |
-| **Prevention** | `[TEST / DOC UPDATE]` |
+| **Date** | 2026-08-17 |
+| **Phase** | Phase 4 — Gold |
+| **Symptom** | Sum of `gold_revenue_by_customer.total_revenue` ≠ sum of `gold_sales_by_product.total_revenue` on seed-42 data (~265k gap) |
+| **Context** | `pytest tests/test_gold_aggregations.py::TestGeneratedDataValidation` |
+| **Root cause** | PASS Completed orders referencing FAIL Silver customers contributed to product sales but were excluded from customer revenue (trusted customers only) |
+| **Resolution** | Introduced `trusted_business_orders` — PASS Completed orders joining PASS customer and PASS product — as the single realized-revenue basis for all Gold metrics |
+| **Prevention** | Reconciliation test in `test_gold_aggregations.py`; documented join policy in `gold_common.py` and design docs |
 
 ---
+
 
 ## Common Problem Areas (Anticipated)
 
@@ -183,5 +186,5 @@ pytest tests/ -v
 
 | Metric | Value |
 |--------|-------|
-| Issues logged | 8 |
-| Resolved issues | 8 |
+| Issues logged | 9 |
+| Resolved issues | 9 |
