@@ -71,13 +71,15 @@ Silver answers: *"Which rows are trustworthy, which failed, and why?"*
 
 Gold answers: *"What are the business metrics on clean, joinable data?"*
 
+**Phase 5 (complete locally):** Dashboard SQL assets (`src/dashboard/`), setup guide, static validation tests. Databricks execution not validated in repo.
+
 ### Dashboard — Consumption
 
 | Responsibility | Detail |
 |----------------|--------|
-| SQL queries | Against Gold tables (or views) |
-| Visualizations | Top products, revenue distribution, segmentation breakdown |
-| Audience | Business analysts and data engineers validating pipeline output |
+| SQL queries | Against Gold tables only (`gold_sales_by_product`, `gold_revenue_by_customer`, `gold_customer_segmentation`, `gold_daily_weekly_trends`) |
+| Visualizations | Top 10 products, revenue distribution bands, segmentation, weekly trend |
+| Setup | `src/dashboard/dashboard_setup.md` |
 
 ---
 

@@ -163,4 +163,24 @@ python src/silver/create_silver_tables.py
 | Bronze PySpark scripts | Done |
 | Gold aggregations | Done |
 | Local Gold transform/reconciliation tests | Done |
+| Dashboard SQL assets + static tests | Done |
 | Databricks Delta integration run (Bronze/Silver/Gold) | Not executed in repo |
+| Databricks SQL Warehouse / dashboard UI | Not executed in repo |
+
+### Dashboard (Phase 5)
+
+After Gold tables exist in Databricks:
+
+1. Open SQL Warehouse → SQL Editor.
+2. Replace `${schema}` in each file under `src/dashboard/` with your qualified schema.
+3. Run queries and create visualizations per `src/dashboard/dashboard_setup.md`.
+4. Assemble dashboard tiles.
+
+```bash
+pytest tests/test_dashboard_queries.py -q
+```
+
+**Databricks SQL execution not validated in this repo.**
+
+---
+| Databricks SQL Warehouse / dashboard UI | Not executed in repo |

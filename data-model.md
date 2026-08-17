@@ -181,6 +181,19 @@ Gold realized revenue uses Silver `orders.total_amount` for **trusted business o
 
 ---
 
+## Dashboard Layer (Phase 5)
+
+Dashboard SQL in `src/dashboard/` reads Gold tables only. No Bronze/Silver queries.
+
+| Query file | Consumes | Output grain |
+|------------|----------|--------------|
+| `01_top_10_products_by_revenue.sql` | `gold_sales_by_product` | 10 products |
+| `02_customer_revenue_distribution.sql` | `gold_revenue_by_customer` | Revenue bands |
+| `03_customer_segmentation.sql` | `gold_customer_segmentation` | Segments |
+| `04_revenue_trend.sql` | `gold_daily_weekly_trends` | Weekly periods |
+
+---
+
 ## Identifier Ranges (Sample Data)
 
 | Entity | ID range | Notes |

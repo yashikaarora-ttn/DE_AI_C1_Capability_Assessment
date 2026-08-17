@@ -4,7 +4,7 @@ Data Engineering AI Capability Assessment repository.
 
 A production-oriented **Databricks Medallion Architecture** pipeline for e-commerce analytics. The pipeline ingests customer, product, and order data through **Bronze → Silver → Gold** layers and exposes business metrics via a **SQL dashboard**.
 
-**Current status: Phase 4 Gold complete locally.** Trusted Silver aggregations, SQL + PySpark parity, reconciliation tests; **101 tests passing**. Dashboard remains.
+**Current status: Phase 5 Dashboard SQL assets complete locally.** Gold aggregations + Databricks SQL dashboard queries; static validation tests. **Not yet validated on Databricks SQL Warehouse.**
 
 ---
 
@@ -161,7 +161,44 @@ Orchestration: `silver_foundation.apply_silver_pipeline()` or `apply_silver_all(
 | `src/silver/silver_config.py` | Silver config and Delta write helpers |
 | `src/silver/create_silver_tables.py` | Full pipeline + optional Delta writes |
 
-**Not yet:** Dashboard.
+**Not yet:** Databricks SQL Warehouse execution and dashboard rendering.
+
+---
+
+## Dashboard (Phase 5)
+
+SQL assets in `src/dashboard/` consume **Gold tables only** (no Bronze/Silver).
+
+| File | Visualization | Gold source | Chart |
+|------|---------------|-------------|-------|
+| `01_top_10_products_by_revenue.sql` | Top 10 products | `gold_sales_by_product` | Bar |
+| `02_customer_revenue_distribution.sql` | Revenue bands | `gold_revenue_by_customer` | Bar/column |
+| `03_customer_segmentation.sql` | Segmentation | `gold_customer_segmentation` | Pie/donut or bar |
+| `04_revenue_trend.sql` | Weekly revenue trend | `gold_daily_weekly_trends` | Line |
+
+Setup guide: `src/dashboard/dashboard_setup.md`
+
+### Revenue distribution bands (presentation assumptions)
+
+| Band | `total_revenue` rule |
+|------|----------------------|
+| No Revenue | = 0 |
+| Low | > 0 and < 500 |
+| Medium | >= 500 and < 2000 |
+| High | >= 2000 and < 5000 |
+| Very High | >= 5000 |
+
+Bands are defined in `02_customer_revenue_distribution.sql` (dashboard presentation assumptions for seed-42 scale data).
+
+### Run dashboard tests
+
+```bash
+pytest tests/test_dashboard_queries.py -v
+```
+
+**Locally validated:** SQL file contracts, Gold-only references, lightweight PySpark checks against Gold outputs.
+
+**Not yet validated:** Databricks SQL execution, SQL Warehouse, actual dashboard UI.
 
 ---
 
@@ -227,7 +264,7 @@ Product-level and customer-level `total_revenue` sums both equal the trusted bus
 
 **Locally validated:** PySpark aggregations, SQL definition files (not executed on Databricks), unit/integration tests, seed-42 reconciliation via `scripts/run_gold_validation.py`.
 
-**Not yet validated in Databricks:** Gold Delta writes (`create_gold_tables.py`), Gold SQL execution in Databricks SQL/notebooks, Dashboard.
+**Not yet validated in Databricks:** Gold Delta writes, Gold SQL execution, Dashboard SQL Warehouse execution and UI rendering.
 
 ---
 
@@ -346,10 +383,10 @@ Environment-specific values (catalog name, schema name, storage paths) will be d
 3. **Bronze** — `python src/bronze/ingest_all.py` ✅ (local transform tests; Delta on Databricks)
 4. **Silver** — Full validation pipeline ✅; DQ metrics — pending
 5. **Gold** — Build sales-by-product, revenue-by-customer, trends, and segmentation ✅
-6. **Dashboard** — Run SQL queries and build visualizations
-7. **Validate** — Run tests; review DQ reports; verify dashboard outputs
+6. **Dashboard** — SQL queries and Databricks dashboard setup ✅ (local assets)
+7. **Validate** — Run tests; review DQ reports; verify dashboard on Databricks
 
-Steps 6–7 and Dashboard work are **not yet implemented**.
+Step 7 Databricks dashboard verification is **not yet executed in this repo**.
 
 ---
 
