@@ -94,12 +94,12 @@ The assessment evaluates the ability to design a **Databricks Medallion Architec
 
 1. **Databricks** is the primary execution environment with **Delta Lake** as the table format.
 2. **Unity Catalog** or Hive metastore is available; exact catalog/schema names are environment-specific placeholders.
-3. **Revenue** is calculated as `order.quantity × product.price` at aggregation time.
+3. **Revenue** in Gold uses Silver `orders.total_amount` on trusted business orders (sample data sets `total_amount = quantity × unit_price`).
 4. **Invalid references** are FK values that do not exist in the respective master table (distinct from NULL FKs).
-5. **Customer segmentation** uses revenue-based tiers; exact tier boundaries will be documented in Gold implementation.
+5. **Customer segmentation** uses rule-based mutually exclusive segments (Inactive, One-Time, Repeat, High-Value) with configurable revenue threshold in Gold.
 6. **Dashboard** will use Databricks SQL Dashboard or notebook SQL + charts.
 7. **CSV files** are batch-loaded; no streaming or CDC required for this assessment.
-8. **Gold layer** consumes only Silver rows marked as valid (`is_valid = true` or equivalent).
+8. **Gold layer** consumes only trusted Silver rows (`dq_status = 'PASS'`) and trusted business orders for realized revenue.
 
 ---
 
@@ -124,10 +124,10 @@ The assessment evaluates the ability to design a **Databricks Medallion Architec
 | Topic | Decision | Rationale |
 |-------|----------|-----------|
 | Duplicate key handling | Flag all rows involved in a duplicate key violation | Auditable; avoids arbitrary "keep first" without documentation |
-| Bad record retention | Retain in Silver with `is_valid = false` and reason codes | Assessment requires flagging, not silent deletion |
+| Bad record retention | Retain in Silver with `dq_status = 'FAIL'` and `dq_failure_reasons` | Assessment requires flagging, not silent deletion |
 | Gold input | Only validated Silver rows | Ensures business metrics reflect trusted data |
 | Storage format | Delta Lake at all Medallion layers | Databricks standard; ACID and schema evolution |
-| Segmentation method | Revenue percentile tiers (e.g., High / Medium / Low) | Simple, explainable; details in Gold phase |
+| Segmentation method | Rule-based segments with `GOLD_HIGH_VALUE_THRESHOLD` (default 1000) | Implemented in Gold; dashboard reads `gold_customer_segmentation` |
 | Bronze write mode | To be finalized in Bronze phase | Overwrite for simplicity vs append with batch_id for audit |
 | Invalid FK generation | IDs outside valid master key ranges | Satisfies "invalid reference" counts separately from NULLs |
 | Repository layout | Project artifacts at Git repository root (`DE_AI_C1_Capability_Assessment/`) | Matches assignment structure |

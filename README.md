@@ -4,7 +4,39 @@ Data Engineering AI Capability Assessment repository.
 
 A production-oriented **Databricks Medallion Architecture** pipeline for e-commerce analytics. The pipeline ingests customer, product, and order data through **Bronze → Silver → Gold** layers and exposes business metrics via a **SQL dashboard**.
 
-**Current status: Phase 5 Dashboard SQL assets complete locally.** Gold aggregations + Databricks SQL dashboard queries; static validation tests. **Not yet validated on Databricks SQL Warehouse.**
+**Current status: All implementation phases complete.** **127 regression tests** passing (final pre-submission audit). Submission documentation and candidate metadata are complete; manual submission actions remain.
+
+---
+
+## Quick Start for Evaluators
+
+| Question | Where to look |
+|----------|---------------|
+| What does this project do? | [Architecture Overview](#architecture-overview) below |
+| How is data generated and what DQ issues exist? | [Sample Data Generation](#sample-data-generation-phase-1) |
+| What does each layer do? | Bronze, Silver, Gold, Dashboard sections below |
+| How do I run locally? | `pip install -r requirements.txt` → generate CSVs → `pytest tests/ -q` |
+| How do I run on Databricks? | `database/setup-notes.md`; layer `create_*_tables.py` scripts |
+| What is locally validated vs not? | [Validation Status](#validation-status) |
+| Where is AI prompt history? | `ai-prompts/` (curated summaries; see `ai-prompts/README.md`) |
+| Submission checklist? | `SUBMISSION_CHECKLIST.md` |
+
+### Validation Status
+
+| Locally validated | Not validated in this repository |
+|-------------------|----------------------------------|
+| PySpark transforms (Bronze/Silver/Gold) | Databricks Delta writes |
+| 127 pytest regression tests | SQL Warehouse query execution |
+| Seed-42 DQ counts and Gold reconciliation | Dashboard UI rendering |
+| Dashboard SQL static contracts (25 tests) | |
+
+### Run full test suite
+
+```bash
+source .venv/bin/activate
+pip install -r requirements.txt
+pytest tests/ -q   # 127 tests at last audit
+```
 
 ---
 
@@ -335,6 +367,7 @@ See `design-notes.md` and `data-quality-strategy.md` for detailed design decisio
 ```text
 DE_AI_C1_Capability_Assessment/
 ├── README.md
+├── SUBMISSION_CHECKLIST.md
 ├── candidate-info.md
 ├── tool-workflow.md
 ├── requirements-analysis.md
@@ -370,7 +403,7 @@ DE_AI_C1_Capability_Assessment/
 | **Python 3.10+** | Local data generation and pytest |
 | **PySpark** | Available on Databricks cluster; local optional for tests |
 | **Delta Lake** | Storage format for Bronze/Silver/Gold tables |
-| **Databricks SQL** | Dashboard and ad-hoc queries (planned) |
+| **Databricks SQL** | Dashboard SQL assets prepared; UI execution on cluster |
 
 Environment-specific values (catalog name, schema name, storage paths) will be documented in `database/setup-notes.md` and marked as placeholders in `database/schema.sql`.
 
@@ -381,7 +414,7 @@ Environment-specific values (catalog name, schema name, storage paths) will be d
 1. **Setup** — Configure catalog/schema; review `database/schema.sql` and setup notes
 2. **Data generation** — `python src/data_generation/generate_sample_data.py` ✅
 3. **Bronze** — `python src/bronze/ingest_all.py` ✅ (local transform tests; Delta on Databricks)
-4. **Silver** — Full validation pipeline ✅; DQ metrics — pending
+4. **Silver** — Full validation pipeline ✅; DQ metrics ✅
 5. **Gold** — Build sales-by-product, revenue-by-customer, trends, and segmentation ✅
 6. **Dashboard** — SQL queries and Databricks dashboard setup ✅ (local assets)
 7. **Validate** — Run tests; review DQ reports; verify dashboard on Databricks
@@ -401,7 +434,10 @@ Step 7 Databricks dashboard verification is **not yet executed in this repo**.
 | `database/setup-notes.md` | Database/catalog setup guidance |
 | `database/seed-data-notes.md` | Sample data generation plan |
 | `tool-workflow.md` | AI-assisted development workflow |
-| `ai-prompts/` | Prompt history by activity area |
+| `final-ai-usage-summary.md` | Executive AI usage summary |
+| `reflection.md` | Assessment reflection |
+| `SUBMISSION_CHECKLIST.md` | Pre-submission checklist |
+| `ai-prompts/` | Curated prompt history by activity area |
 
 ---
 

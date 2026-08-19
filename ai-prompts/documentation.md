@@ -152,18 +152,156 @@ The assessment submission should live at the Git repository root so reviewers cl
 
 ---
 
-## Future prompts
-
-Add new entries below as documentation and planning prompts occur.
-
-### Prompt N — (Template)
+## Prompt 4 — Compliance audit (post-implementation)
 
 | Field | Detail |
 |-------|--------|
-| **Date** | |
-| **Phase** | |
-| **Activity area** | |
+| **Date** | 2026-08-17 |
+| **Phase** | Audit (all phases complete) |
+| **Activity area** | Submission readiness, documentation consistency, evidence review |
 
-**Prompt summary:**  
-**AI response summary:**  
-**Accepted / Changed / Rejected / Why:**
+**Prompt summary:** Complete compliance audit after all phases committed (`186d0fd`). Review structure, DQ counts, layer requirements, tests, AI prompt history, debugging evidence, docs consistency, placeholders, security, regression. No features/refactors/commit. Fix clear doc drift only; record outcome without inventing interactions.
+
+**AI response summary:** All implementation phases present; 127 tests pass. Submission gaps: `candidate-info.md`, `reflection.md`, `final-ai-usage-summary.md`, `tool-workflow.md` still Phase 0 templates; `ai-prompts/debugging.md` empty despite nine `debugging-notes.md` issues. Fixed drift in `requirements-analysis.md` and `debugging-notes.md`. No pipeline code changes.
+
+**Outcome:** **COMPLIANT WITH MINOR FIXES** — strong technical evidence; candidate must complete submission metadata and AI reflection. Databricks runtime not validated in repo.
+
+---
+
+## Prompt 5 — Phase 6 submission documentation
+
+| Field | Detail |
+|-------|--------|
+| **Date** | 2026-08-17 |
+| **Phase** | Submission readiness (documentation only) |
+| **Activity area** | Candidate templates, reflection, AI summary, checklist |
+
+**Prompt summary:** Final documentation iteration after compliance audit. Prepare `candidate-info.md`, `reflection.md`, `final-ai-usage-summary.md`, `SUBMISSION_CHECKLIST.md`, polish README/tool-workflow/ai-prompts index. No pipeline logic changes. No invented candidate info or fake prompts. No commit/push.
+
+**AI response summary:** Created submission-ready templates with `<TODO: candidate to fill>` placeholders; evidence-based reflection from debugging-notes and phase history; executive AI summary with test progression (86 Silver → 102 Gold → 127 final); `ai-prompts/README.md` clarifying curated vs raw Cursor transcripts; deduplicated `silver-layer.md` duplicate prompt entry; README evaluator quick-start.
+
+**Accepted:** Honest local vs Databricks distinction; curated prompt history terminology; checklist without marking manual tasks complete.
+
+**Changed:** Documentation only — no `src/` or `tests/` modifications.
+
+**Rejected:** Fabricating candidate personal data; inventing Cursor transcripts; claiming Databricks execution.
+
+**Outcome:** **READY FOR CANDIDATE INPUT** — technical repo complete; candidate completes personal fields and optional transcript export before submit.
+
+---
+
+## Prompt 6 — Phase 7 candidate input preparation and evidence review
+
+| Field | Detail |
+|-------|--------|
+| **Date** | 2026-08-19 |
+| **Phase** | Submission readiness (documentation only) |
+| **Activity area** | Candidate-info known facts, TODO inventory, evidence review |
+
+**Prompt summary:** After Phase 6, fill only repository-known facts in `candidate-info.md` (Track 1, C1 assessment name, repo name, Cursor Company Account, PySpark/Delta stack, GitHub URL from `git remote`). Classify TODO/placeholder inventory; review reflection and AI summary; prompt-history inventory; git log checkpoints; submission checklist; confirm no `src/`/`tests/` changes. No invented personal data, model versions, or Databricks claims. No commit/push.
+
+**AI response summary:** Updated `candidate-info.md` with assessment track, C1 name, GitHub HTTPS URL from origin remote, Cursor (Company Account), primary implementation stack. Reviewed reflection and `final-ai-usage-summary.md` for factual accuracy. Confirmed curated `ai-prompts/` evidence per phase; six incremental git commits from foundation through dashboard. Verified zero `src/`/`tests/` diff. Regression evidence unchanged at 127 passed.
+
+**Accepted:** GitHub URL from clean HTTPS remote without credentials; manual TODO markers retained for name, designation, model, dates, personalization.
+
+**Changed:** Documentation only — `candidate-info.md`, minor reflection/final-summary/checklist alignment.
+
+**Rejected:** Inventing candidate identity; fabricating Cursor model/version; marking Databricks or manual submission tasks complete.
+
+**Outcome:** **READY FOR MANUAL PERSONALIZATION** — candidate completes personal fields, ratings, reflection voice, optional Cursor export, then commit/push per checklist.
+
+---
+
+## Prompt 7 — Final pre-submission audit
+
+| Field | Detail |
+|-------|--------|
+| **Date** | 2026-08-19 |
+| **Phase** | Final pre-submission audit (documentation and validation only) |
+| **Activity area** | Candidate metadata, compliance, hygiene, regression, Gold reconciliation |
+
+### Exact prompt
+
+```text
+Perform the FINAL pre-submission audit in /Users/yashikaarora/Desktop/DE_AI_C1_Capability_Assessment. This is audit/final validation only. Do NOT add features, broadly refactor, commit, or push. Make only minimal documentation fixes for clear factual/misleading claims. Do not fabricate Databricks execution.
+
+Established status: all phases complete; previous 127 tests; docs uncommitted.
+
+## 1 Candidate/docs
+Review candidate-info.md, reflection.md, final-ai-usage-summary.md, tool-workflow.md, SUBMISSION_CHECKLIST.md, README.md, ai-prompts/README.md and all ai-prompts/*.md. Verify exactly:
+- Yashika Arora
+- Associate Technical Lead
+- To The New
+- yashika.arora@tothenew.com
+- Assessment ID N/A
+- Start Date 17 August 2026 (allow equivalent formatting 17 Aug 2026 but report)
+- Submission Date 20 August 2026
+- Cursor (Company Account)
+- Cursor Auto and Cursor Grok 4.6 (High reasoning effort)
+- ratings 3.5,3.5,4,3.5 as specified
+- Total Hours absent as required field
+Do not rewrite personal narrative absent factual inconsistency.
+
+## 2 TODO audit
+Search <TODO, TODO, TBD, PLACEHOLDER. Classify relevant occurrences; descriptive/history references are not blockers. Environment placeholders allowed. Report genuine blockers.
+
+## 3 Requirements compliance
+Evidence-check data gen exact counts/determinism; Bronze; Silver; Gold; Dashboard as listed in user request. No new functionality unless required item absent.
+
+## 4 Prompt history
+Evidence all areas; curated vs raw distinction; raw export manual if required.
+
+## 5 Hygiene
+Non-destructive scans for secrets/token/password/credentials/private keys/local absolute paths; tracked .venv, CSVs, caches, Spark temp, IDE files, unusually large tracked files. Never print secret values; report path/location only. Check .gitignore.
+
+## 6 Git
+Run git status; git diff --name-only; git diff --stat; git log --oneline --decorate -10; git remote -v. Confirm only expected docs changed, no src/tests changes, expected GitHub origin, incremental history.
+
+## 7 Full regression
+source .venv/bin/activate && pytest tests/ -q. Report exact passes/failures/runtime. If fail, root cause/minimal fix and rerun.
+
+## 8 Gold validation
+Run existing scripts/run_gold_validation.py safely. Report actual PASS customers/products/orders, Completed PASS orders, trusted business orders, trusted realized revenue, sales/product revenue, customer revenue, segmentation count. Confirm equality.
+
+## 9 Databricks claims
+Search docs for misleading execution claims; separate local validation vs not runtime validated. Minimal docs fix only if needed.
+
+## 10 Checklist
+Update supported statuses only; keep manual items unchecked: public visibility unless independently verified, raw Cursor export, final commit/push, Databricks runtime/dashboard execution.
+
+## 11 Prompt history
+Record this exact final audit request and actual outcome in ai-prompts/documentation.md as next prompt; curated summary, no fabrication.
+
+Before final report, verify git diff --name-only src/ tests/ empty. Return these 13 sections:
+1 Overall readiness
+2 Must-fix
+3 Should-fix
+4 Genuine TODOs
+5 Compliance summary
+6 Prompt-history
+7 Security/hygiene
+8 Final regression
+9 Gold reconciliation
+10 Databricks boundary
+11 Manual actions
+12 git status
+13 git diff --stat
+End with exactly one verdict line: READY FOR FINAL COMMIT or NOT READY FOR FINAL COMMIT.
+
+Do not commit/push.
+```
+
+### Actual outcome
+
+- Candidate metadata, dates, tool/model details, and ratings matched the requested values; no `Total Hours` field was present.
+- Removed stale documentation claims that candidate personalization was still pending; updated only evidence-supported checklist statuses.
+- TODO-like occurrences remaining after the audit are historical/descriptive prompt references, not submission blockers.
+- Requirements evidence was present for deterministic seed-42 generation, exact issue counts, Bronze ingestion, all four Silver DQ dimensions and metrics, reconciled Gold aggregations, and Gold-only dashboard SQL.
+- Prompt history covers planning, all implementation phases, debugging, audits, and submission documentation; it is explicitly curated rather than a raw Cursor export.
+- Security and hygiene scans found no credential/private-key patterns, unintended local absolute paths, tracked generated CSVs, virtual environments, caches, Spark temp artifacts, IDE metadata, or tracked files of at least 1 MiB. The exact prompt above necessarily preserves the repository path supplied in the audit request.
+- Full regression: `127 passed in 335.14s (0:05:35)`.
+- Gold validation: PASS customers 9,940; products 500; orders 99,600; Completed PASS orders 33,042; trusted business orders 32,857; trusted realized revenue 46,978,989.58; product revenue 46,978,989.58; customer revenue 46,978,989.58. Segmentation totals 9,940 customers (High-Value 8,081; Inactive 368; One-Time 1,176; Repeat 315). Product, customer, and trusted revenue were exactly equal.
+- Databricks Delta writes, SQL Warehouse execution, and dashboard UI rendering remain explicitly not runtime-validated.
+- No `src/` or `tests/` files were modified. No commit or push was performed.
+
+**Outcome:** **READY FOR FINAL COMMIT** after the remaining manual checklist actions.

@@ -1,6 +1,6 @@
 # Debugging Notes
 
-Structured log of issues encountered and resolutions during pipeline development. **No issues logged yet** — template for use during implementation.
+Structured log of issues encountered and resolutions during pipeline development.
 
 ---
 
@@ -165,19 +165,17 @@ Also capture related AI prompts in `ai-prompts/debugging.md`.
 
 ---
 
-## Useful Commands (Planned)
+## Useful Commands
 
 ```bash
-# Run unit tests (when implemented)
 pytest tests/ -v
-
-# Check generated CSV row counts (Phase 1)
-# wc -l data/raw/*.csv
+python src/data_generation/generate_sample_data.py --seed 42
+python scripts/run_gold_validation.py
 ```
 
 ```sql
--- Check Silver invalid row sample (when implemented)
--- SELECT * FROM <schema>.silver_orders WHERE is_valid = false LIMIT 20;
+-- Sample Silver invalid rows (Databricks)
+SELECT * FROM <schema>.silver_orders WHERE dq_status = 'FAIL' LIMIT 20;
 ```
 
 ---

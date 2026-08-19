@@ -46,46 +46,6 @@ Log of AI prompts related to Silver validation, DQ rules, metrics, and flagging 
 
 ---
 
-## Prompt 2 — Uniqueness and referential integrity
-
-| Field | Detail |
-|-------|--------|
-| **Date** | 2026-08-16 |
-| **Phase** | Silver — Phase 3 iteration 2 |
-| **Files affected** | `02_quality_uniqueness.py`, `04_quality_referential_integrity.py`, `silver_foundation.py`, `silver_common.py`, tests, docs |
-
-**Prompt summary:** Implement remaining Silver DQ dimensions: uniqueness (window-based PK duplicate detection; all rows in duplicate groups flagged) and referential integrity (orders vs customer/product masters). Preserve reason accumulation, bad-row retention, and validation order: completeness → type → uniqueness → RI.
-
-**AI response summary:** Added window-based uniqueness validation; broadcast-join RI for orders; updated orchestration in `silver_foundation.py` with `apply_silver_pipeline()`; `array_distinct` on reason merge; 16 new tests; full pipeline validation on generated data.
-
-**Accepted:** `DUPLICATE_*` codes flag all rows in duplicate groups; `INVALID_CUSTOMER_ID`/`INVALID_PRODUCT_ID` for RI only on successfully normalized FKs; NULL and malformed FKs excluded from RI.
-
-**Rejected:** Gold/Dashboard; Delta Silver writes; DQ metrics reporting.
-
-**Why:** User scoped iteration to core DQ dimensions before table persistence and metrics.
-
----
-
-## Prompt 2 — Uniqueness and referential integrity
-
-| Field | Detail |
-|-------|--------|
-| **Date** | 2026-08-16 |
-| **Phase** | Silver — Phase 3 iteration 2 |
-| **Files affected** | `02_quality_uniqueness.py`, `04_quality_referential_integrity.py`, `silver_foundation.py`, `silver_common.py`, tests, docs |
-
-**Prompt summary:** Implement uniqueness (all rows in duplicate PK groups flagged) and referential integrity (order FKs vs customers/products). Preserve reason accumulation, validation order, and bad-row retention. No Gold/Dashboard/metrics/Delta writes yet.
-
-**AI response summary:** Window-based uniqueness validation; broadcast left-join RI with exclusions for NULL and type-malformed FKs; full pipeline orchestration; 78 pytest tests including full generated-data count validation.
-
-**Accepted:** `DUPLICATE_*` and RI `INVALID_*` codes; distinct NULL vs type vs RI failure paths; `apply_silver_pipeline` / `apply_silver_all`.
-
-**Rejected:** Driver-side uniqueness checks; RI on malformed FKs; quarantine tables.
-
-**Why:** Completes the four core Silver DQ dimensions before metrics and Delta table creation.
-
----
-
 ## Prompt 3 — DQ metrics, table creation, business-logic module
 
 | Field | Detail |
