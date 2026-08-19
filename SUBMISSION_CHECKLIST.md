@@ -6,7 +6,7 @@ Use this checklist before final submission. **Do not mark items complete unless 
 
 ## Repository
 
-- [ ] Public GitHub repository created/shared
+- [x] Public GitHub repository created/shared
 - [x] `main` branch is current with all implementation commits
 - [ ] Working tree clean after final commit (`git status` shows nothing uncommitted)
 - [x] No secrets, tokens, or credentials found in tracked-file scan
@@ -22,7 +22,7 @@ Use this checklist before final submission. **Do not mark items complete unless 
 - [x] Role / designation entered
 - [x] Organization and email entered
 - [x] Assessment ID entered as N/A
-- [ ] GitHub repository URL confirmed (pre-filled in `candidate-info.md` from `git remote` — verify public visibility)
+- [x] GitHub repository URL confirmed (pre-filled in `candidate-info.md` from `git remote` — public visibility verified)
 - [x] AI tool confirmed (Cursor Company Account)
 - [x] AI models entered (Cursor Auto and Cursor Grok 4.6, High reasoning effort)
 - [x] Start and submission dates entered
@@ -77,7 +77,7 @@ Only mark the above if you have actually run them in your workspace and can demo
 
 ## Final Hygiene
 
-- [ ] Repository visibility checked (public/private per assessment instructions)
+- [x] Repository visibility checked (public/private per assessment instructions)
 - [ ] GitHub web UI reviewed — no `data/*.csv` committed
 - [x] No `.venv/` committed
 - [x] No `__pycache__`, `.pytest_cache`, or Spark temp artifacts committed

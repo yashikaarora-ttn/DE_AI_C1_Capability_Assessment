@@ -70,10 +70,10 @@ Cursor Auto supported general development and routine tasks. Cursor Grok 4.6 wit
 
 ## Declaration
 
-- [ ] I confirm this submission represents my own work with AI assistance documented in `ai-prompts/`, `tool-workflow.md`, and `final-ai-usage-summary.md`.
-- [ ] I have reviewed all generated code and documentation for accuracy.
-- [ ] I have completed all candidate-specific fields in this file and related submission documents.
-- [ ] I have verified the GitHub repository is public (if required) and contains no secrets or generated CSVs.
+- [x] I confirm this submission represents my own work with AI assistance documented in `ai-prompts/`, `tool-workflow.md`, and `final-ai-usage-summary.md`.
+- [x] I have reviewed all generated code and documentation for accuracy.
+- [x] I have completed all candidate-specific fields in this file and related submission documents.
+- [x] I have verified the GitHub repository is public (if required) and contains no secrets or generated CSVs.
 
 **Signature / Name:** Yashika Arora
 
@@ -95,6 +95,6 @@ Cursor Auto supported general development and routine tasks. Cursor Grok 4.6 wit
 | GitHub Repository URL | ☐ (pre-filled from `git remote`; verify public visibility) |
 | AI Model / version | ☑ |
 | Usage Period | ☑ |
-| Declaration checkboxes | ☐ |
+| Declaration checkboxes | ☑ |
 | Signature and date | ☑ |
 | Cursor transcript export (if required by evaluator) | ☐ |
