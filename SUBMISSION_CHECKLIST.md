@@ -71,8 +71,6 @@ Use this checklist before final submission. **Do not mark items complete unless 
 - [ ] SQL Warehouse queries executed — **not done in this repo**
 - [ ] Dashboard visualizations rendered in Databricks UI — **not done in this repo**
 
-Only mark the above if you have actually run them in your workspace and can demonstrate results.
-
 ---
 
 ## Final Hygiene

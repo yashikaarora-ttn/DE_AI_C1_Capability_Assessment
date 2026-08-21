@@ -20,7 +20,7 @@
 | **Assessment Track** | Track 1 — Up to TL Level |
 | **Assessment Name** | AI Capability Assessment (C1) — Databricks Medallion Pipeline |
 | **Assessment ID / Reference** | N/A |
-| **Submission Date** | 20 Aug 2026 |
+| **Submission Date** | 21 Aug 2026 |
 | **Start Date** | 17 Aug 2026 |
 
 ---
